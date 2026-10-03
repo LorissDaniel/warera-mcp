@@ -313,7 +313,7 @@ class WorldService:
         warnings = ["wars_with is the country's current relationship snapshot, not a war history"]
 
         names: dict[str, str] = {}
-        if facts.wars_with:
+        if facts.wars_with or include_active_battles:
             _, country_read = await self._all_countries(
                 operation=operation, credentials=credentials, correlation_id=correlation_id
             )
@@ -339,7 +339,8 @@ class WorldService:
             if isinstance(battle_outcome, UpstreamRead):
                 reads.append(battle_outcome)
                 active_battles = [
-                    normalize_battle_summary(item.data) for item in items_of(battle_outcome.data)
+                    normalize_battle_summary(item.data, country_names=names)
+                    for item in items_of(battle_outcome.data)
                 ]
                 page = page_info(battle_outcome.data)
             else:

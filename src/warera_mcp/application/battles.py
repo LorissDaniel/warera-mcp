@@ -15,6 +15,11 @@ from warera_mcp.application.common import (
     UpstreamCaller,
     composite_observed_at,
 )
+from warera_mcp.application.world import (
+    ALL_COUNTRIES_PROCEDURE,
+    country_name_index,
+    country_records,
+)
 from warera_mcp.auth.credentials import PlayerRequestContext
 from warera_mcp.domain.models import (
     BattleLiveStatus,
@@ -73,8 +78,26 @@ class BattleService:
             credentials=credentials,
             correlation_id=correlation_id,
         )
-        battles = [normalize_battle_summary(item.data) for item in items_of(read.data)]
         warnings: list[str] = []
+        reads: list[UpstreamRead] = [read]
+        country_names: dict[str, str] | None = None
+        countries_outcome = await self._caller.try_read(
+            operation,
+            ALL_COUNTRIES_PROCEDURE,
+            {},
+            credentials=credentials,
+            correlation_id=correlation_id,
+        )
+        if isinstance(countries_outcome, UpstreamRead):
+            reads.append(countries_outcome)
+            country_names = country_name_index(country_records(countries_outcome.data))
+        else:
+            warnings.append("country names were unavailable; country ids are returned")
+
+        battles = [
+            normalize_battle_summary(item.data, country_names=country_names)
+            for item in items_of(read.data)
+        ]
         if country_id is None and is_active is None:
             warnings.append(UNFILTERED_PAGE_WARNING)
         page = page_info(read.data)
@@ -82,7 +105,7 @@ class BattleService:
             warnings.append("more battles are available; pass the cursor to continue")
 
         return SearchBattlesResult(
-            observed_at=read.observed_at,
+            observed_at=composite_observed_at(reads),
             warnings=warnings,
             battles=battles,
             page=page,
@@ -128,10 +151,32 @@ class BattleService:
         if isinstance(detail_outcome, app_errors.AppError):
             raise detail_outcome
 
-        detail, warnings = normalize_battle_detail(
-            detail_outcome.data, include_history=include_history, default_id=battle_id
-        )
         reads: list[UpstreamRead] = [detail_outcome]
+        country_names: dict[str, str] | None = None
+        countries_outcome = await self._caller.try_read(
+            operation,
+            ALL_COUNTRIES_PROCEDURE,
+            {},
+            credentials=credentials,
+            correlation_id=correlation_id,
+        )
+        if isinstance(countries_outcome, UpstreamRead):
+            reads.append(countries_outcome)
+            country_names = country_name_index(country_records(countries_outcome.data))
+        country_warning = (
+            "country names were unavailable; country ids are returned"
+            if not isinstance(countries_outcome, UpstreamRead)
+            else None
+        )
+
+        detail, warnings = normalize_battle_detail(
+            detail_outcome.data,
+            include_history=include_history,
+            default_id=battle_id,
+            country_names=country_names,
+        )
+        if country_warning is not None:
+            warnings.append(country_warning)
         live: BattleLiveStatus | None = None
         partial = False
 

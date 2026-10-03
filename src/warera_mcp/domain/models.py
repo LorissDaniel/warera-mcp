@@ -239,6 +239,7 @@ class BattleSideRef(DomainModel):
     """One side of a battle, compacted for list views."""
 
     country_id: str | None = None
+    country_name: str | None = None
     region_id: str | None = None
     damages: float | None = None
     won_rounds: int | None = None

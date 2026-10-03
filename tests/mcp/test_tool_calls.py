@@ -351,6 +351,8 @@ def test_get_country_wars_lists_opponents_and_battles(
         payload = result.structuredContent
         assert payload["opponents"] == [{"country_id": "c2", "name": "Gaul"}]
         assert payload["active_battles"][0]["id"] == "b1"
+        assert payload["active_battles"][0]["attacker"]["country_name"] == "Italy"
+        assert payload["active_battles"][0]["defender"]["country_name"] == "Gaul"
         assert payload["partial"] is False
 
     run_mcp(settings, stub, scenario)
@@ -457,8 +459,32 @@ def test_search_battles_reports_unfiltered_page(settings: Settings, stub: Upstre
         result = await session.call_tool("search_battles", {"limit": 5})
         payload = result.structuredContent
         assert payload["battles"][0]["id"] == "b1"
+        assert payload["battles"][0]["attacker"]["country_id"] == "c1"
+        assert payload["battles"][0]["attacker"]["country_name"] == "Italy"
+        assert payload["battles"][0]["defender"]["country_name"] == "Gaul"
         assert payload["page"]["has_more"] is True
+        text = result.content[0].text
+        assert "Italy vs Gaul" in text
+        assert "danni 100-90" in text
+        assert "next_cursor=" in text
         assert any("ordering is not guaranteed" in warning for warning in payload["warnings"])
+
+    run_mcp(settings, stub, scenario)
+
+
+def test_search_battles_keeps_ids_when_country_name_lookup_fails(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    seed_public_routes(stub)
+    stub.route_status("country.getAllCountries", 500)
+
+    async def scenario(session: Any) -> None:
+        result = await session.call_tool("search_battles", {"limit": 5})
+        payload = result.structuredContent
+        assert result.isError is False
+        assert payload["battles"][0]["attacker"]["country_id"] == "c1"
+        assert "country_name" not in payload["battles"][0]["attacker"]
+        assert any("country ids are returned" in warning for warning in payload["warnings"])
 
     run_mcp(settings, stub, scenario)
 
@@ -470,6 +496,9 @@ def test_get_battle_combines_dossier_and_live(settings: Settings, stub: Upstream
         result = await session.call_tool("get_battle", {"battle_id": "b1"})
         payload = result.structuredContent
         assert payload["battle"]["rounds_to_win"] == 3
+        assert payload["battle"]["attacker"]["country_name"] == "Italy"
+        assert payload["battle"]["defender"]["country_name"] == "Gaul"
+        assert "Italy vs Gaul" in result.content[0].text
         assert payload["live_status"]["round_id"] == "rnd1"
         assert payload["live_status"]["next_tick_at"].endswith("Z")
         assert payload["partial"] is False

@@ -518,11 +518,17 @@ def normalize_work_offer(payload: object) -> WorkOffer:
 
 
 # -------------------------------------------------------------------------- battles
-def _normalize_side(record: Record | None) -> BattleSideRef | None:
+def _normalize_side(
+    record: Record | None,
+    *,
+    country_names: dict[str, str] | None = None,
+) -> BattleSideRef | None:
     if record is None:
         return None
+    country_id = _ident(record, "country", "countryId")
     return BattleSideRef(
-        country_id=_ident(record, "country", "countryId"),
+        country_id=country_id,
+        country_name=country_names.get(country_id) if country_names and country_id else None,
         region_id=_ident(record, "region", "regionId"),
         damages=_number(record, "damages", "damage"),
         won_rounds=_integer(record, "wonRounds", "won_rounds"),
@@ -545,7 +551,11 @@ def _battle_identity(record: Record) -> str | None:
     return _ident(record, "_id", "id", "battleId")
 
 
-def normalize_battle_summary(payload: object) -> BattleSummary:
+def normalize_battle_summary(
+    payload: object,
+    *,
+    country_names: dict[str, str] | None = None,
+) -> BattleSummary:
     """Normalize one ``battle.getBattles`` row into a compact summary."""
     record = record_of(payload, "$.battle")
     current_round = _ident(record, "currentRound", "currentRoundId", "round")
@@ -557,8 +567,8 @@ def normalize_battle_summary(payload: object) -> BattleSummary:
         id=_battle_identity(record) or "",
         type=canonical_enum(_pick(record, "type"), {"land", "sea", "air", "resistance", "revolt"}),
         is_active=_flag(record, "isActive", "active"),
-        attacker=_normalize_side(record.child("attacker")),
-        defender=_normalize_side(record.child("defender")),
+        attacker=_normalize_side(record.child("attacker"), country_names=country_names),
+        defender=_normalize_side(record.child("defender"), country_names=country_names),
         current_round=current_round,
         created_at=_timestamp(record, "createdAt", "startedAt"),
     )
@@ -569,6 +579,7 @@ def normalize_battle_detail(
     *,
     include_history: bool,
     default_id: str | None = None,
+    country_names: dict[str, str] | None = None,
 ) -> tuple[BattleDetail, list[str]]:
     """Normalize ``battle.getById`` into a dossier without volatile payloads."""
     record = record_of(payload, "$.battle")
@@ -594,8 +605,8 @@ def normalize_battle_detail(
         id=battle_id or "",
         type=canonical_enum(_pick(record, "type"), {"land", "sea", "air", "resistance", "revolt"}),
         is_active=_flag(record, "isActive", "active"),
-        attacker=_normalize_side(record.child("attacker")),
-        defender=_normalize_side(record.child("defender")),
+        attacker=_normalize_side(record.child("attacker"), country_names=country_names),
+        defender=_normalize_side(record.child("defender"), country_names=country_names),
         current_round=current_round,
         rounds_to_win=_integer(record, "roundsToWin", "rounds_to_win"),
         created_at=_timestamp(record, "createdAt", "startedAt"),
