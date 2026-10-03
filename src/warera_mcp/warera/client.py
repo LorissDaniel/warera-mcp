@@ -323,7 +323,7 @@ class WareraQueryClient:
             raise WareraAuthError(status)
         if status >= 500:
             raise WareraServerError(status, "upstream server error")
-        if status >= 400 or status < 200:
+        if not 200 <= status < 300:
             # Preserve the tRPC error code when the body carries one; otherwise
             # fall back to a status-only error. Success envelopes on an error
             # status are deliberately ignored.

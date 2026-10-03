@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. These are NOT live captures; run `pytest -m live` with credentials to validate against the real API.",
+  "domain": "market",
+  "entries": [
+    {
+      "procedure": "itemTrading.getPrices",
+      "auth": "PUBLIC",
+      "input": {},
+      "data": {
+        "iron": 12.53,
+        "bread": 3.21,
+        "wood": 0.87
+      }
+    },
+    {
+      "procedure": "tradingOrder.getTopOrders",
+      "auth": "PUBLIC",
+      "input": { "itemCode": "iron" },
+      "data": {
+        "buyOrders": [
+          { "id": "o-anon-1", "user": "u-anon-1", "item": "iron", "quantity": 120, "price": 12.1, "offerAt": "2024-05-01T09:00:00Z", "type": "buy" },
+          { "id": "o-anon-2", "user": "u-anon-2", "item": "iron", "quantity": 40, "price": 11.4, "offerAt": "2024-05-01T08:30:00Z", "type": "buy" }
+        ],
+        "sellOrders": [
+          { "id": "o-anon-3", "user": "u-anon-3", "item": "iron", "quantity": 60, "price": 12.9, "offerAt": "2024-05-01T08:55:00Z", "type": "sell" },
+          { "id": "o-anon-4", "user": "u-anon-4", "item": "iron", "quantity": 200, "price": 13.5, "offerAt": "2024-05-01T08:10:00Z", "type": "sell" }
+        ]
+      }
+    }
+  ]
+}

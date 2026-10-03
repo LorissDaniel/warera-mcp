@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. Not live captures.",
+  "domain": "battles",
+  "entries": [
+    {
+      "procedure": "battle.getBattles",
+      "auth": "PUBLIC",
+      "input": { "countryId": "c-anon-1", "isActive": true, "limit": 2 },
+      "data": {
+        "items": [
+          {
+            "_id": "b-anon-1",
+            "type": "land",
+            "isActive": true,
+            "attacker": { "country": "c-anon-1", "region": "r-anon-1", "damages": 1200.5, "wonRounds": 2 },
+            "defender": { "country": "c-anon-2", "region": "r-anon-2", "damages": 980.0, "wonRounds": 1 },
+            "currentRound": "round-anon-3",
+            "createdAt": "2024-04-30T18:00:00Z",
+            "lastHits": [{ "user": "u-anon-1", "damage": 12 }]
+          }
+        ],
+        "nextCursor": "cursor-anon-battles"
+      }
+    },
+    {
+      "procedure": "battle.getById",
+      "auth": "PUBLIC",
+      "input": { "battleId": "b-anon-1" },
+      "data": {
+        "_id": "b-anon-1",
+        "type": "land",
+        "isActive": true,
+        "attacker": { "country": "c-anon-1", "region": "r-anon-1", "damages": 1200.5, "wonRounds": 2 },
+        "defender": { "country": "c-anon-2", "region": "r-anon-2", "damages": 980.0, "wonRounds": 1 },
+        "roundsToWin": 3,
+        "createdAt": "2024-04-30T18:00:00Z",
+        "rounds": [
+          { "_id": "round-anon-1", "attackerDamages": 400, "defenderDamages": 380 },
+          { "_id": "round-anon-2", "attackerDamages": 420, "defenderDamages": 350 }
+        ],
+        "equipment": { "heavy": 12 }
+      }
+    },
+    {
+      "procedure": "battle.getLiveBattleData",
+      "auth": "PUBLIC",
+      "input": { "battleId": "b-anon-1" },
+      "data": {
+        "battle": "b-anon-1",
+        "round": {
+          "_id": "round-anon-3",
+          "attackerDamages": 120.5,
+          "defenderDamages": 98.25,
+          "points": { "attacker": 3, "defender": 2 },
+          "nextTickAt": "2024-05-01T10:05:00Z",
+          "activity": { "hits": 42 }
+        }
+      }
+    },
+    {
+      "procedure": "battleRanking.getRanking",
+      "auth": "PUBLIC",
+      "input": { "battleId": "b-anon-1", "type": "user", "side": "merged", "dataType": "damage" },
+      "data": {
+        "itemCount": 3,
+        "items": [
+          { "user": "u-anon-1", "rank": 1, "value": 4200.5 },
+          { "user": "u-anon-2", "rank": 2, "value": 3100.0 },
+          { "user": "u-anon-3", "rank": 3, "value": 990.25 }
+        ]
+      }
+    }
+  ]
+}

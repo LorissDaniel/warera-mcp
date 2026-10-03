@@ -12,7 +12,11 @@ from warera_mcp.domain.enums import PlayerField
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, OptionalIdentifier
+from warera_mcp.mcp_server.tools.base import (
+    READ_ONLY_ANNOTATIONS,
+    SAFE_TEXT_PATTERN,
+    OptionalIdentifier,
+)
 
 GET_PLAYER_DESCRIPTION = (
     "Get a player's public profile and selected public stats. Use the WarEra user ID when "
@@ -30,7 +34,13 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         user_id: OptionalIdentifier = None,
         username: Annotated[
-            str | None, Field(default=None, max_length=64, description="Exact in-game username.")
+            str | None,
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Exact in-game username.",
+            ),
         ] = None,
         fields: Annotated[
             list[PlayerField] | None,

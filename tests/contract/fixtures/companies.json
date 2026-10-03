@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. Not live captures.",
+  "domain": "companies",
+  "entries": [
+    {
+      "procedure": "company.getById",
+      "auth": "PUBLIC",
+      "input": { "companyId": "co-anon-1" },
+      "data": {
+        "_id": "co-anon-1",
+        "name": "IronWorks",
+        "itemCode": "iron",
+        "production": 250.5,
+        "activeUpgradeLevels": { "storage": 2, "engine": 1 },
+        "isFull": false,
+        "workerCount": 4,
+        "estimatedValue": 15200,
+        "user": "u-anon-1",
+        "region": "r-anon-1",
+        "createdAt": "2024-03-01T08:00:00Z"
+      }
+    },
+    {
+      "procedure": "company.getCompanies",
+      "auth": "PUBLIC",
+      "input": { "userId": "u-anon-1" },
+      "data": {
+        "items": ["co-anon-1", "co-anon-2", "co-anon-3"]
+      }
+    },
+    {
+      "procedure": "company.getProductionBonus",
+      "auth": "PUBLIC",
+      "input": { "companyId": "co-anon-1" },
+      "data": {
+        "strategicBonus": 11,
+        "depositBonus": 30,
+        "ethicSpecializationBonus": 0,
+        "ethicDepositBonus": 0,
+        "total": 41
+      }
+    },
+    {
+      "procedure": "company.getRecommendedRegionIdsByItemCode",
+      "auth": "ANY_OF",
+      "input": { "itemCode": "iron" },
+      "data": [
+        {
+          "regionId": "r-anon-1",
+          "bonus": 41,
+          "depositBonus": 30,
+          "strategicBonus": 11,
+          "ethicSpecializationBonus": 0,
+          "ethicDepositBonus": 0,
+          "taxPercent": 3
+        },
+        {
+          "regionId": "r-anon-2",
+          "bonus": 22,
+          "depositBonus": 15,
+          "strategicBonus": 7,
+          "ethicSpecializationBonus": 0,
+          "ethicDepositBonus": 0,
+          "taxPercent": 2
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. Not live captures.",
+  "domain": "world",
+  "entries": [
+    {
+      "procedure": "country.getAllCountries",
+      "auth": "PUBLIC",
+      "input": {},
+      "data": [
+        {
+          "_id": "c-anon-1",
+          "name": "CountryOne",
+          "code": "C1",
+          "population": 41230,
+          "development": 18.42,
+          "taxes": { "market": 3, "income": 2 },
+          "specializedItem": "iron",
+          "warsWith": ["c-anon-2"],
+          "allies": ["c-anon-3"],
+          "allianceId": "a-anon-1",
+          "enemy": null
+        },
+        {
+          "_id": "c-anon-2",
+          "name": "CountryTwo",
+          "code": "C2",
+          "population": 38110,
+          "development": 16.05,
+          "warsWith": ["c-anon-1"],
+          "allies": [],
+          "allianceId": null
+        },
+        {
+          "_id": "c-anon-3",
+          "name": "CountryThree",
+          "code": "C3",
+          "population": 22118,
+          "development": 11.30
+        }
+      ]
+    },
+    {
+      "procedure": "country.getCountryById",
+      "auth": "PUBLIC",
+      "input": { "countryId": "c-anon-1" },
+      "data": {
+        "_id": "c-anon-1",
+        "name": "CountryOne",
+        "code": "C1",
+        "population": 41230,
+        "development": 18.42,
+        "taxes": { "market": 3 },
+        "specializedItem": "iron",
+        "warsWith": ["c-anon-2"]
+      }
+    },
+    {
+      "procedure": "region.getRegionsObject",
+      "auth": "PUBLIC",
+      "input": {},
+      "data": {
+        "r-anon-1": {
+          "_id": "r-anon-1",
+          "name": "RegionOne",
+          "country": "c-anon-1",
+          "isCapital": true,
+          "climate": "temperate",
+          "biome": "plains",
+          "population": 12000,
+          "development": 9.1,
+          "deposit": { "type": "iron", "bonusPercent": 25, "startsAt": "2024-05-01T00:00:00Z", "endsAt": "2024-06-01T00:00:00Z" },
+          "neighbors": ["r-anon-2"]
+        },
+        "r-anon-2": {
+          "_id": "r-anon-2",
+          "name": "RegionTwo",
+          "country": "c-anon-2",
+          "population": 8000,
+          "development": 7.4,
+          "neighbors": ["r-anon-1"]
+        }
+      }
+    },
+    {
+      "procedure": "region.getById",
+      "auth": "PUBLIC",
+      "input": { "regionId": "r-anon-1" },
+      "data": {
+        "_id": "r-anon-1",
+        "name": "RegionOne",
+        "country": "c-anon-1",
+        "isCapital": true,
+        "climate": "temperate",
+        "biome": "plains",
+        "population": 12000,
+        "development": 9.1,
+        "deposit": { "type": "iron", "bonusPercent": 25 },
+        "resistance": 0.2,
+        "upgrades": { "deposit": 2 }
+      }
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. Not live captures.",
+  "domain": "players",
+  "entries": [
+    {
+      "procedure": "user.getUserLite",
+      "auth": "PUBLIC",
+      "input": { "userId": "u-anon-1" },
+      "data": {
+        "_id": "u-anon-1",
+        "username": "PlayerOne",
+        "leveling": { "level": 12, "xp": 340 },
+        "country": "c-anon-1",
+        "region": "r-anon-1",
+        "skills": { "production": 3.5, "management": 2 },
+        "rankings": { "wealth": 1042 },
+        "militaryUnit": "mu-anon-1",
+        "stats": { "battles": 12 }
+      }
+    },
+    {
+      "procedure": "search.searchUsers",
+      "auth": "PUBLIC",
+      "input": { "searchText": "PlayerOne", "limit": 5 },
+      "data": ["u-anon-1", "u-anon-2", "u-anon-3", "u-anon-4", "u-anon-5"]
+    },
+    {
+      "procedure": "search.searchAnything",
+      "auth": "PUBLIC",
+      "input": { "searchText": "PlayerOne" },
+      "data": {
+        "userIds": ["u-anon-1"],
+        "muIds": ["mu-anon-1"],
+        "countryIds": ["c-anon-1"],
+        "regionIds": ["r-anon-1"],
+        "partyIds": [],
+        "allianceIds": ["a-anon-1"],
+        "hasData": true
+      }
+    },
+    {
+      "procedure": "user.getUsersByCountry",
+      "auth": "PUBLIC",
+      "input": { "countryId": "c-anon-1", "limit": 2 },
+      "data": {
+        "items": [
+          { "_id": "u-anon-1", "createdAt": "2024-01-05T10:00:00Z" },
+          { "_id": "u-anon-2", "createdAt": "2024-02-11T12:30:00Z" }
+        ],
+        "nextCursor": "cursor-anon-1"
+      }
+    }
+  ]
+}

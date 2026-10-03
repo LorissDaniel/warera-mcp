@@ -13,8 +13,9 @@ from collections.abc import Iterable
 REDACTED = "[redacted]"
 
 #: Control characters are rejected in credential/identifier inputs because they
-#: enable header injection and log spoofing.
-_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+#: enable header injection and log spoofing. All C0 controls (including CR/LF/TAB)
+#: and DEL are rejected.
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def contains_control_characters(value: str) -> bool:

@@ -11,7 +11,11 @@ from pydantic import Field
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, OptionalIdentifier
+from warera_mcp.mcp_server.tools.base import (
+    READ_ONLY_ANNOTATIONS,
+    SAFE_TEXT_PATTERN,
+    OptionalIdentifier,
+)
 
 GET_COUNTRY_OVERVIEW_DESCRIPTION = (
     "Get selected verified facts about a country plus, optionally, its regions. Names are matched "
@@ -22,7 +26,7 @@ GET_COUNTRY_OVERVIEW_DESCRIPTION = (
 GET_REGION_DESCRIPTION = (
     "Get a region's detail by id or exact name: population, development, climate, deposit and "
     "optionally its country. Region names repeat across countries, so ambiguous matches are "
-    "rejected and reported instead of guessed."
+    "rejected and reported instead of guessed. It does not recommend where to build."
 )
 
 GET_COUNTRY_WARS_DESCRIPTION = (
@@ -43,7 +47,13 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         country_id: OptionalIdentifier = None,
         country_name: Annotated[
-            str | None, Field(default=None, max_length=64, description="Exact country name.")
+            str | None,
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Exact country name.",
+            ),
         ] = None,
         include_regions: Annotated[
             bool, Field(default=False, description="Also list the country's regions.")
@@ -80,7 +90,13 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         region_id: OptionalIdentifier = None,
         region_name: Annotated[
-            str | None, Field(default=None, max_length=64, description="Exact region name.")
+            str | None,
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Exact region name.",
+            ),
         ] = None,
         include_country: Annotated[
             bool, Field(default=True, description="Also resolve the linked country.")
@@ -113,7 +129,13 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         country_id: OptionalIdentifier = None,
         country_name: Annotated[
-            str | None, Field(default=None, max_length=64, description="Exact country name.")
+            str | None,
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Exact country name.",
+            ),
         ] = None,
         include_active_battles: Annotated[
             bool,

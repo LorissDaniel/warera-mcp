@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. Not live captures.",
+  "domain": "work",
+  "entries": [
+    {
+      "procedure": "workOffer.getWageStats",
+      "auth": "PUBLIC",
+      "input": { "itemCode": "iron" },
+      "data": {
+        "allowedRange": { "min": 1.2, "max": 9.4, "average": 4.6 },
+        "topOffer": { "wage": 9.4, "wageAfterTax": 8.9 },
+        "topEligibleOffer": { "wage": 9.0, "wageAfterTax": 8.5 },
+        "topEligibleOffers": [
+          { "wage": 9.0, "wageAfterTax": 8.5 },
+          { "wage": 8.7, "wageAfterTax": 8.2 }
+        ]
+      }
+    },
+    {
+      "procedure": "workOffer.getWorkOffersPaginated",
+      "auth": "PUBLIC",
+      "input": { "limit": 2 },
+      "data": {
+        "items": [
+          {
+            "_id": "w-anon-1",
+            "company": "co-anon-1",
+            "user": "u-anon-1",
+            "region": "r-anon-1",
+            "wage": 9.0,
+            "wageAfterTax": 8.5,
+            "quantity": 5,
+            "initialQuantity": 10,
+            "citizenship": "c-anon-1",
+            "text": "Come work with us"
+          },
+          {
+            "_id": "w-anon-2",
+            "company": "co-anon-2",
+            "region": "r-anon-2",
+            "wage": 8.0,
+            "quantity": 3,
+            "initialQuantity": 3
+          }
+        ],
+        "nextCursor": "cursor-anon-work"
+      }
+    }
+  ]
+}

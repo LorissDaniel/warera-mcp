@@ -61,11 +61,8 @@ def registered_tool_names(mcp: FastMCP) -> set[str]:
     return {tool.name for tool in mcp._tool_manager.list_tools()}
 
 
-def register_tools(mcp: FastMCP) -> frozenset[str]:
-    """Register every approved tool module and verify the resulting inventory."""
-    for module in _TOOL_MODULES:
-        module.register(mcp)
-
+def verify_inventory(mcp: FastMCP) -> frozenset[str]:
+    """Assert that the registered tools match the approved read-only inventory."""
     names = registered_tool_names(mcp)
     missing = APPROVED_TOOL_NAMES - names
     unexpected = names - APPROVED_TOOL_NAMES
@@ -77,9 +74,17 @@ def register_tools(mcp: FastMCP) -> frozenset[str]:
     return APPROVED_TOOL_NAMES
 
 
+def register_tools(mcp: FastMCP) -> frozenset[str]:
+    """Register every approved tool module and verify the resulting inventory."""
+    for module in _TOOL_MODULES:
+        module.register(mcp)
+    return verify_inventory(mcp)
+
+
 __all__ = [
     "APPROVED_TOOL_NAMES",
     "ToolInventoryError",
     "register_tools",
     "registered_tool_names",
+    "verify_inventory",
 ]

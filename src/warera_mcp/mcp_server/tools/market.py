@@ -11,7 +11,7 @@ from pydantic import Field
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS
+from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, SAFE_TEXT_PATTERN
 
 GET_MARKET_PRICE_DESCRIPTION = (
     "Get the latest global quoted price for one item. This is a single price snapshot for one "
@@ -25,14 +25,19 @@ SEARCH_MARKET_DESCRIPTION = (
 )
 
 GET_WORK_MARKET_DESCRIPTION = (
-    "Get the wage benchmark for one item together with a small set of matching work offers. Offers "
-    "are filtered locally on the first upstream page. It reports wage facts only and makes no "
-    "eligibility or suitability claim."
+    "Get the wage benchmark for one item together with a small set of matching work offers. "
+    "Offers are filtered locally on the first upstream page. It reports wage facts only and does "
+    "not assess eligibility or suitability."
 )
 
 ItemCode = Annotated[
     str,
-    Field(min_length=1, max_length=64, description="WarEra item code, e.g. 'iron' or 'bread'."),
+    Field(
+        min_length=1,
+        max_length=64,
+        pattern=SAFE_TEXT_PATTERN,
+        description="WarEra item code, e.g. 'iron' or 'bread'.",
+    ),
 ]
 
 
@@ -117,7 +122,12 @@ def register(mcp: FastMCP) -> None:
         ] = 5,
         region_id: Annotated[
             str | None,
-            Field(default=None, max_length=64, description="Filter offers by region id."),
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Filter offers by region id.",
+            ),
         ] = None,
         minimum_net_wage: Annotated[
             float | None,

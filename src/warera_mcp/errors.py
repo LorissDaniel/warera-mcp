@@ -106,7 +106,9 @@ class AppError(Exception):
         """Return the canonical structured error object from the design."""
         required: str | list[str]
         if isinstance(self.required_auth, tuple):
-            required = list(self.required_auth)
+            # An operation with no credential requirement reports an empty string
+            # rather than an empty list, matching the documented single/list shape.
+            required = list(self.required_auth) if self.required_auth else ""
         else:
             required = self.required_auth
 

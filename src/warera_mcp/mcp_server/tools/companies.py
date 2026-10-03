@@ -11,7 +11,11 @@ from pydantic import Field
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, RequiredIdentifier
+from warera_mcp.mcp_server.tools.base import (
+    READ_ONLY_ANNOTATIONS,
+    SAFE_TEXT_PATTERN,
+    RequiredIdentifier,
+)
 
 GET_PLAYER_COMPANIES_DESCRIPTION = (
     "List the companies a player owns, with product, location, workforce and optional production "
@@ -40,7 +44,13 @@ def register(mcp: FastMCP) -> None:
             Field(default=None, max_length=64, description="WarEra user id (preferred)."),
         ] = None,
         username: Annotated[
-            str | None, Field(default=None, max_length=64, description="Exact in-game username.")
+            str | None,
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Exact in-game username.",
+            ),
         ] = None,
         limit: Annotated[
             int, Field(ge=1, le=12, default=12, description="Maximum companies to return (1-12).")

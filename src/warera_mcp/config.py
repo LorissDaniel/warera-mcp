@@ -32,6 +32,10 @@ class Settings(BaseSettings):
         extra="forbid",
         case_sensitive=False,
         frozen=True,
+        # Complex env values are comma-separated lists, not JSON. Disabling
+        # pydantic-settings decoding lets the CSV field validators below see the
+        # raw string instead of failing on json.loads.
+        enable_decoding=False,
     )
 
     # ------------------------------------------------------------------ upstream

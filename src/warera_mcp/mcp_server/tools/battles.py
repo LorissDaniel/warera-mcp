@@ -26,8 +26,8 @@ SEARCH_BATTLES_DESCRIPTION = (
 
 GET_BATTLE_DESCRIPTION = (
     "Get a battle's status: sides, current round and optionally a live snapshot. Live values "
-    "are volatile snapshots with an explicit tick timestamp. Last-hits lists and equipment "
-    "payloads are excluded by design."
+    "are volatile snapshots with an explicit tick timestamp. It does not return last-hits "
+    "lists or equipment payloads."
 )
 
 

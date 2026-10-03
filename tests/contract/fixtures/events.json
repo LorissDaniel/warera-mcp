@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized payload shapes derived from the reviewed endpoint inventory in SYSTEM_DESIGN.md. Not live captures.",
+  "domain": "events",
+  "entries": [
+    {
+      "procedure": "event.getEventsPaginated",
+      "auth": "PUBLIC",
+      "input": { "limit": 2 },
+      "data": {
+        "items": [
+          {
+            "_id": "e-anon-1",
+            "type": "war",
+            "priority": "high",
+            "countries": ["c-anon-1", "c-anon-2"],
+            "data": { "text": "<b>War</b> declared between CountryOne and CountryTwo" },
+            "createdAt": "2024-05-01T09:00:00Z",
+            "updatedAt": "2024-05-01T09:00:00Z"
+          },
+          {
+            "_id": "e-anon-2",
+            "type": "peace",
+            "countries": ["c-anon-1"],
+            "createdAt": "2024-05-01T07:30:00Z"
+          }
+        ],
+        "nextCursor": "cursor-anon-events"
+      }
+    }
+  ]
+}
