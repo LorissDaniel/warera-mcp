@@ -1,0 +1,35 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+.venv*/
+pythonenv*/
+
+# ---- Tooling caches ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ---- Secrets & local config (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Local / editor ----
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# ---- Local live-probe artifacts (may contain real identifiers) ----
+live-probe-*.json
+tests/contract/fixtures/local/
