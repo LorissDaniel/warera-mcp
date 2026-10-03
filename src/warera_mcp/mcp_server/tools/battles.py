@@ -8,6 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult
 from pydantic import Field
 
+from warera_mcp.domain.models import SearchBattlesResult
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
@@ -19,10 +20,38 @@ from warera_mcp.mcp_server.tools.base import (
     SmallLimit,
 )
 
+
+def _battle_list_summary(result: SearchBattlesResult) -> str:
+    """Render one battle page for clients that only display MCP text content."""
+    battles = getattr(result, "battles", [])
+    lines: list[str] = []
+    for index, battle in enumerate(battles, start=1):
+        kind = "Resistenza" if battle.type == "resistance" else "Guerra"
+        attacker = battle.attacker
+        defender = battle.defender
+        attacker_name = (attacker.country_name if attacker else None) or (
+            attacker.country_id if attacker else "?"
+        )
+        defender_name = (defender.country_name if defender else None) or (
+            defender.country_id if defender else "?"
+        )
+        attacker_damage = attacker.damages if attacker and attacker.damages is not None else 0
+        defender_damage = defender.damages if defender and defender.damages is not None else 0
+        lines.append(
+            f"{index}. {kind}: {attacker_name} vs {defender_name} "
+            f"(danni {attacker_damage:g}-{defender_damage:g})"
+        )
+
+    page = getattr(result, "page", None)
+    continuation = ""
+    if page is not None and page.has_more:
+        continuation = f"; altre battaglie disponibili, next_cursor={page.next_cursor}"
+    return f"{len(battles)} battaglie restituite: " + "; ".join(lines) + continuation
 SEARCH_BATTLES_DESCRIPTION = (
-    "List battles, optionally filtered by country and active state. Without a filter this is the "
-    "first upstream page, and its ordering is not guaranteed, so do not describe it as 'latest'. "
-    "For a battle leaderboard use get_battle_ranking."
+    "List battles, optionally filtered by country and active state. Each side includes the "
+    "human-readable country name and id. Without a filter this is the first upstream page, and "
+    "its ordering is not guaranteed, so do not describe it as 'latest'. For a battle leaderboard "
+    "use get_battle_ranking."
 )
 
 GET_BATTLE_DESCRIPTION = (
@@ -66,9 +95,10 @@ def register(mcp: FastMCP) -> None:
         )
         return success_result(
             result,
-            summary=f"{len(result.battles)} battles returned",
+            summary=_battle_list_summary(result),
             operation="search_battles",
             max_bytes=runtime.settings.max_output_bytes,
+            summary_limit=4_000,
         )
 
     @mcp.tool(
@@ -93,9 +123,19 @@ def register(mcp: FastMCP) -> None:
             correlation_id=call_id(ctx),
         )
         state = "active" if result.battle.is_active else "not active"
+        attacker = result.battle.attacker
+        defender = result.battle.defender
+        attacker_name = (attacker.country_name if attacker else None) or (
+            attacker.country_id if attacker else "?"
+        )
+        defender_name = (defender.country_name if defender else None) or (
+            defender.country_id if defender else "?"
+        )
         return success_result(
             result,
-            summary=f"Battle {result.battle.id} is {state}",
+            summary=(
+                f"Battle {result.battle.id}: {attacker_name} vs {defender_name} is {state}"
+            ),
             operation="get_battle",
             max_bytes=runtime.settings.max_output_bytes,
         )

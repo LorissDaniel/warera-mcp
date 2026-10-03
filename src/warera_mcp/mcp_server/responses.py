@@ -36,12 +36,13 @@ def success_result(
     summary: str,
     operation: str,
     max_bytes: int,
+    summary_limit: int = 300,
 ) -> CallToolResult:
     """Build a successful MCP result from a canonical domain model."""
     structured = model.to_structured()
     enforce_output_budget(structured, operation=operation, max_bytes=max_bytes)
     return CallToolResult(
-        content=[TextContent(type="text", text=truncate_summary(summary))],
+        content=[TextContent(type="text", text=truncate_summary(summary, limit=summary_limit))],
         structuredContent=structured,
         isError=False,
     )

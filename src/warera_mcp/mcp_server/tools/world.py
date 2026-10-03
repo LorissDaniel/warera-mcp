@@ -159,11 +159,25 @@ def register(mcp: FastMCP) -> None:
         )
         if result.active_battles is not None:
             summary += f"; {len(result.active_battles)} active battles in this page"
+            battle_lines: list[str] = []
+            for battle in result.active_battles:
+                attacker = battle.attacker
+                defender = battle.defender
+                attacker_name = (attacker.country_name if attacker else None) or (
+                    attacker.country_id if attacker else "?"
+                )
+                defender_name = (defender.country_name if defender else None) or (
+                    defender.country_id if defender else "?"
+                )
+                battle_lines.append(f"{attacker_name} vs {defender_name}")
+            if battle_lines:
+                summary += ": " + "; ".join(battle_lines)
         return success_result(
             result,
             summary=summary,
             operation="get_country_wars",
             max_bytes=runtime.settings.max_output_bytes,
+            summary_limit=4_000,
         )
 
 
