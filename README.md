@@ -89,8 +89,6 @@ If you expose it beyond your own machine, turn on client authentication and set 
 - **Game text is treated as untrusted.** Player and company names are cleaned and length-limited
   before the assistant sees them.
 
-For the full architecture and rules, see [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md).
-
 ## Privacy & security
 
 - The current tools use **only public data** and need **no WarEra login, API key or token**.
