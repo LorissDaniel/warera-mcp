@@ -135,7 +135,7 @@ class WorldService:
                 credentials=credentials,
                 correlation_id=correlation_id,
             )
-            facts, _ = normalize_country(read.data)
+            facts, _ = normalize_country(read.data, default_id=country_id)
             return facts, [read]
 
         if country_name is None:  # pragma: no cover - guarded by the XOR check above
@@ -235,7 +235,7 @@ class WorldService:
                 credentials=credentials,
                 correlation_id=correlation_id,
             )
-            detail, warnings = normalize_region_detail(read.data)
+            detail, warnings = normalize_region_detail(read.data, default_id=region_id)
             reads = [read]
         else:
             if region_name is None:  # pragma: no cover - guarded by the XOR check above

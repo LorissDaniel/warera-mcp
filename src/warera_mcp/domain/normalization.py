@@ -177,11 +177,20 @@ def normalize_skill_map(record: Record, *keys: str) -> dict[str, float] | None:
 
 
 # ------------------------------------------------------------------------- players
-def normalize_player_lite(payload: object) -> tuple[PlayerProfile, list[str]]:
-    """Normalize ``user.getUserLite`` into a public profile."""
+def normalize_player_lite(
+    payload: object,
+    *,
+    default_id: str | None = None,
+) -> tuple[PlayerProfile, list[str]]:
+    """Normalize ``user.getUserLite`` into a public profile.
+
+    ``default_id`` is the identifier the caller asked for; it is used when the
+    upstream record omits its own id, so a successful lookup never degrades into
+    an empty id.
+    """
     record = record_of(payload, "$.player")
     warnings: list[str] = []
-    player_id = _ident(record, "_id", "id", "userId")
+    player_id = _ident(record, "_id", "id", "userId") or default_id
     if player_id is None:
         warnings.append("player id was missing from the upstream profile")
     level = _integer(record, "level")
@@ -202,11 +211,15 @@ def normalize_player_lite(payload: object) -> tuple[PlayerProfile, list[str]]:
 
 
 # ----------------------------------------------------------------------- companies
-def normalize_company_detail(payload: object) -> tuple[CompanyDetail, list[str]]:
+def normalize_company_detail(
+    payload: object,
+    *,
+    default_id: str | None = None,
+) -> tuple[CompanyDetail, list[str]]:
     """Normalize ``company.getById`` into canonical company facts."""
     record = record_of(payload, "$.company")
     warnings: list[str] = []
-    company_id = _ident(record, "_id", "id", "companyId")
+    company_id = _ident(record, "_id", "id", "companyId") or default_id
     if company_id is None:
         warnings.append("company id was missing from the upstream record")
     detail = CompanyDetail(
@@ -228,9 +241,9 @@ def normalize_company_detail(payload: object) -> tuple[CompanyDetail, list[str]]
     return detail, warnings
 
 
-def normalize_company_summary(payload: object) -> CompanySummary:
+def normalize_company_summary(payload: object, *, default_id: str | None = None) -> CompanySummary:
     """Normalize one company detail payload into the compact list projection."""
-    detail, _ = normalize_company_detail(payload)
+    detail, _ = normalize_company_detail(payload, default_id=default_id)
     record = record_of(payload, "$.company")
     return CompanySummary(
         id=detail.id,
@@ -271,11 +284,15 @@ def normalize_production_bonus(payload: object) -> tuple[ProductionBonus, list[s
 
 
 # --------------------------------------------------------------------------- world
-def normalize_country(payload: object) -> tuple[CountryFacts, list[str]]:
+def normalize_country(
+    payload: object,
+    *,
+    default_id: str | None = None,
+) -> tuple[CountryFacts, list[str]]:
     """Normalize ``country.getAllCountries`` / ``getCountryById`` records."""
     record = record_of(payload, "$.country")
     warnings: list[str] = []
-    country_id = _ident(record, "_id", "id", "countryId")
+    country_id = _ident(record, "_id", "id", "countryId") or default_id
     if country_id is None:
         warnings.append("country id was missing from the upstream record")
     taxes = _numeric_map(record, "taxes", "taxRates")
@@ -314,11 +331,15 @@ def normalize_region_summary(payload: object) -> RegionSummary:
     )
 
 
-def normalize_region_detail(payload: object) -> tuple[RegionDetail, list[str]]:
+def normalize_region_detail(
+    payload: object,
+    *,
+    default_id: str | None = None,
+) -> tuple[RegionDetail, list[str]]:
     """Normalize ``region.getById`` into canonical region detail."""
     record = record_of(payload, "$.region")
     warnings: list[str] = []
-    region_id = _ident(record, "_id", "id", "regionId")
+    region_id = _ident(record, "_id", "id", "regionId") or default_id
     if region_id is None:
         warnings.append("region id was missing from the upstream record")
 
@@ -530,12 +551,15 @@ def normalize_battle_summary(payload: object) -> BattleSummary:
 
 
 def normalize_battle_detail(
-    payload: object, *, include_history: bool
+    payload: object,
+    *,
+    include_history: bool,
+    default_id: str | None = None,
 ) -> tuple[BattleDetail, list[str]]:
     """Normalize ``battle.getById`` into a dossier without volatile payloads."""
     record = record_of(payload, "$.battle")
     warnings: list[str] = []
-    battle_id = _battle_identity(record)
+    battle_id = _battle_identity(record) or default_id
     if battle_id is None:
         warnings.append("battle id was missing from the upstream record")
 

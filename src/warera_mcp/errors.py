@@ -94,9 +94,10 @@ class AppError(Exception):
     correlation_id: str | None = None
 
     def __post_init__(self) -> None:
-        # Exception has its own args handling; keep str(error) informative but
-        # free of credential values.
-        super().__init__(self.message)
+        # NOTE: ``slots=True`` recreates the class, which breaks zero-argument
+        # ``super()`` inside __post_init__. Calling the base initialiser through
+        # the explicit class is the correct, stable form here.
+        Exception.__init__(self, self.message)
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return f"{self.code.value}: {self.message}"

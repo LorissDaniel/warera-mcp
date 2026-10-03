@@ -140,7 +140,7 @@ class CompanyService:
         for index, outcome in enumerate(detail_outcomes):
             if isinstance(outcome, UpstreamRead):
                 reads.append(outcome)
-                summary = normalize_company_summary(outcome.data)
+                summary = normalize_company_summary(outcome.data, default_id=page_ids[index])
                 bonus = bonus_outcomes.get(page_ids[index])
                 if bonus is not None:
                     summary = summary.model_copy(update={"production_bonus": bonus})
@@ -225,7 +225,7 @@ class CompanyService:
         if isinstance(detail_outcome, app_errors.AppError):
             raise detail_outcome
 
-        detail, warnings = normalize_company_detail(detail_outcome.data)
+        detail, warnings = normalize_company_detail(detail_outcome.data, default_id=company_id)
         reads: list[UpstreamRead] = [detail_outcome]
 
         production_bonus = None

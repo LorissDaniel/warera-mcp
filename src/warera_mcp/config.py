@@ -84,11 +84,15 @@ class Settings(BaseSettings):
     json_response: bool = False
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_json: bool = True
+    health_path: str = "/healthz"
+    max_request_body_bytes: int = Field(default=1_000_000, ge=1024, le=16_000_000)
 
     # ------------------------------------------------- MCP client authentication
     require_client_auth: bool = False
     client_auth_tokens: tuple[SecretStr, ...] = ()
     """Hashed-at-load bearer tokens for MCP clients. Distinct from WarEra creds."""
+    client_rate_limit_per_minute: int = Field(default=120, ge=1, le=100_000)
+    client_rate_limit_burst: int = Field(default=30, ge=1, le=10_000)
     trusted_hosts: tuple[str, ...] = ()
     enable_cors: bool = False
     cors_allow_origins: tuple[str, ...] = ()

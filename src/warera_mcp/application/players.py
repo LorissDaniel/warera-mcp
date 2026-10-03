@@ -143,7 +143,7 @@ class PlayerResolver:
             credentials=credentials,
             correlation_id=correlation_id,
         )
-        profile, _ = normalize_player_lite(read.data)
+        profile, _ = normalize_player_lite(read.data, default_id=user_id)
         return ResolvedPlayer(
             profile=profile, resolved_by="user_id", observed_at=read.observed_at, reads=(read,)
         )

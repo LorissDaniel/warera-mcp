@@ -129,7 +129,7 @@ class BattleService:
             raise detail_outcome
 
         detail, warnings = normalize_battle_detail(
-            detail_outcome.data, include_history=include_history
+            detail_outcome.data, include_history=include_history, default_id=battle_id
         )
         reads: list[UpstreamRead] = [detail_outcome]
         live: BattleLiveStatus | None = None
