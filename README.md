@@ -28,7 +28,7 @@ raw web requests, so you can simply ask:
 - *"Which countries is Freedonia at war with, and are there active battles?"*
 - *"Who is dealing the most damage in this battle?"*
 
-The server fetches the data, tidies it up, and hands the assistant a compact, size-limited answer.
+The server fetches the data, tidies it up, and hands the assistant a compact, size-limited answer. Tools accept optional request-scoped WarEra credentials (`api_key` or `jwt`) in `player_context`; the project never provides a default or global WarEra credential.
 
 ## Tools
 
@@ -91,7 +91,10 @@ If you expose it beyond your own machine, turn on client authentication and set 
 
 ## Privacy & security
 
-- The current tools use **only public data** and need **no WarEra login, API key or token**.
+- The tools read WarEra data and current public operations can be called anonymously.
+- If supplied, `player_context` carries the caller's own request-scoped `api_key` or `jwt`.
+- The project has no default or global WarEra credential.
+- Submitted credentials are not logged, cached or persisted by the server, but they are sent in the MCP tool request and may be visible in the LLM/client conversation history.
 - Nothing you ask is stored.
 - Found a security problem? Please report it privately (for example via your hosting platform's
   security-advisory feature) rather than opening a public issue.

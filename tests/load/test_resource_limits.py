@@ -210,7 +210,10 @@ def test_tool_call_is_cut_off_at_the_deadline_with_a_timeout_error() -> None:
         server = create_server(settings, transport=httpx.MockTransport(slow))
         async with connect(server._mcp_server) as session:
             started = asyncio.get_running_loop().time()
-            result = await session.call_tool("get_market_price", {"item_code": "iron"})
+            result = await session.call_tool(
+                "get_market_price",
+                {"item_code": "iron", "player_context": {"api_key": "wae_test_key"}},
+            )
             elapsed = asyncio.get_running_loop().time() - started
             assert result.isError is True
             assert error_code(result) == "UPSTREAM_TIMEOUT"
@@ -249,7 +252,10 @@ def test_deadline_bounds_retry_backoff_and_fanout() -> None:
         server = create_server(settings, transport=httpx.MockTransport(always_429))
         async with connect(server._mcp_server) as session:
             started = asyncio.get_running_loop().time()
-            result = await session.call_tool("get_market_price", {"item_code": "iron"})
+            result = await session.call_tool(
+                "get_market_price",
+                {"item_code": "iron", "player_context": {"api_key": "wae_test_key"}},
+            )
             assert asyncio.get_running_loop().time() - started < 2.0
             assert result.isError is True
 

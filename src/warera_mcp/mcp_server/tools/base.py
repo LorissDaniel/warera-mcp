@@ -7,10 +7,12 @@ read-only semantics — which is what the MCP client sees when choosing a tool.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from mcp.types import ToolAnnotations
 from pydantic import Field
+
+from warera_mcp.auth.credentials import PlayerRequestContext, parse_player_context
 
 #: Rejects every C0 control character (including CR/LF/TAB) and DEL. Applied to
 #: identifier-shaped tool inputs so header/log injection is impossible even before
@@ -66,12 +68,30 @@ MediumLimit = Annotated[
     Field(ge=1, le=20, default=10, description="Maximum rows to return (1-20)."),
 ]
 
+PlayerContextInput = Annotated[
+    Any | None,
+    Field(
+        default=None,
+        description=(
+            "Optional per-request WarEra credentials: an object containing api_key or jwt. "
+            "Never use a project-wide or default credential."
+        ),
+    ),
+]
+
+
+def player_context_credentials(payload: Any) -> PlayerRequestContext:
+    """Parse optional caller credentials without creating process-global state."""
+    return parse_player_context(payload)
+
 __all__ = [
     "READ_ONLY_ANNOTATIONS",
     "SAFE_TEXT_PATTERN",
     "MediumLimit",
     "OpaqueCursor",
     "OptionalIdentifier",
+    "PlayerContextInput",
     "RequiredIdentifier",
     "SmallLimit",
+    "player_context_credentials",
 ]

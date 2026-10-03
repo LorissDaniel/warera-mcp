@@ -16,6 +16,8 @@ from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
     OptionalIdentifier,
+    PlayerContextInput,
+    player_context_credentials,
 )
 
 GET_PLAYER_DESCRIPTION = (
@@ -32,6 +34,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_player")
     async def get_player(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         user_id: OptionalIdentifier = None,
         username: Annotated[
             str | None,
@@ -50,10 +53,12 @@ def register(mcp: FastMCP) -> None:
         ] = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.players.get_player(
             user_id=user_id,
             username=username,
             fields=fields,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         label = result.player.username or result.player.id

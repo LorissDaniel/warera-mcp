@@ -15,6 +15,8 @@ from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
     OptionalIdentifier,
+    PlayerContextInput,
+    player_context_credentials,
 )
 
 GET_COUNTRY_OVERVIEW_DESCRIPTION = (
@@ -45,6 +47,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_country_overview")
     async def get_country_overview(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         country_id: OptionalIdentifier = None,
         country_name: Annotated[
             str | None,
@@ -63,11 +66,13 @@ def register(mcp: FastMCP) -> None:
         ] = 10,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.world.get_country_overview(
             country_id=country_id,
             country_name=country_name,
             include_regions=include_regions,
             limit_regions=limit_regions,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         summary = f"Country {quoted(result.country.name or result.country.id)}"
@@ -88,6 +93,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_region")
     async def get_region(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         region_id: OptionalIdentifier = None,
         region_name: Annotated[
             str | None,
@@ -103,10 +109,12 @@ def register(mcp: FastMCP) -> None:
         ] = True,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.world.get_region(
             region_id=region_id,
             region_name=region_name,
             include_country=include_country,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         summary = f"Region {quoted(result.region.name or result.region.id)}"
@@ -127,6 +135,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_country_wars")
     async def get_country_wars(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         country_id: OptionalIdentifier = None,
         country_name: Annotated[
             str | None,
@@ -146,11 +155,13 @@ def register(mcp: FastMCP) -> None:
         ] = 5,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.world.get_country_wars(
             country_id=country_id,
             country_name=country_name,
             include_active_battles=include_active_battles,
             limit_battles=limit_battles,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         summary = (

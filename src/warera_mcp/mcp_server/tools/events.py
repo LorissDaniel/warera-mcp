@@ -16,6 +16,8 @@ from warera_mcp.mcp_server.tools.base import (
     SAFE_TEXT_PATTERN,
     MediumLimit,
     OpaqueCursor,
+    PlayerContextInput,
+    player_context_credentials,
 )
 
 SEARCH_EVENTS_DESCRIPTION = (
@@ -35,6 +37,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("search_events")
     async def search_events(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         country_id: Annotated[
             str | None,
             Field(
@@ -57,11 +60,13 @@ def register(mcp: FastMCP) -> None:
         cursor: OpaqueCursor = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.events.search_events(
             country_id=country_id,
             event_types=event_types,
             limit=limit,
             cursor=cursor,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         return success_result(

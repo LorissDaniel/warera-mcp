@@ -33,7 +33,7 @@ def test_public_request_reaches_upstream_as_a_plain_get(
     assert request.method == "GET"
     assert request.url.path == "/trpc/itemTrading.getPrices"
     assert json.loads(request.url.params["input"]) == {}
-    assert "x-api-key" not in request.headers
+    assert request.headers["x-api-key"] == "wae_test_key"
     assert "cookie" not in request.headers
     assert request.headers["origin"] == "https://app.warera.io"
     assert request.headers["user-agent"].startswith("warera-mcp/")

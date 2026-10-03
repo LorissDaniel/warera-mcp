@@ -11,7 +11,12 @@ from pydantic import Field
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, SAFE_TEXT_PATTERN
+from warera_mcp.mcp_server.tools.base import (
+    READ_ONLY_ANNOTATIONS,
+    SAFE_TEXT_PATTERN,
+    PlayerContextInput,
+    player_context_credentials,
+)
 
 GET_MARKET_PRICE_DESCRIPTION = (
     "Get the latest global quoted price for one item. This is a single price snapshot for one "
@@ -48,10 +53,15 @@ def register(mcp: FastMCP) -> None:
         annotations=READ_ONLY_ANNOTATIONS,
     )
     @tool_errors("get_market_price")
-    async def get_market_price(ctx: ToolContext, item_code: ItemCode) -> CallToolResult:
+    async def get_market_price(
+        ctx: ToolContext, player_context: PlayerContextInput, item_code: ItemCode
+    ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.market.get_market_price(
-            item_code=item_code, correlation_id=call_id(ctx)
+            item_code=item_code,
+            credentials=credentials,
+            correlation_id=call_id(ctx),
         )
         return success_result(
             result,
@@ -68,6 +78,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("search_market")
     async def search_market(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         item_code: ItemCode,
         side: Annotated[
             Literal["buy", "sell", "both"],
@@ -87,11 +98,13 @@ def register(mcp: FastMCP) -> None:
         ] = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.market.search_market(
             item_code=item_code,
             side=side,
             max_orders=max_orders,
             depth_quantity=depth_quantity,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         summary = f"{result.item_code} book"
@@ -116,6 +129,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_work_market")
     async def get_work_market(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         item_code: ItemCode,
         limit: Annotated[
             int, Field(ge=1, le=10, default=5, description="Maximum work offers to return (1-10).")
@@ -135,11 +149,13 @@ def register(mcp: FastMCP) -> None:
         ] = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.market.get_work_market(
             item_code=item_code,
             limit=limit,
             region_id=region_id,
             minimum_net_wage=minimum_net_wage,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         summary = f"{result.item_code}: {len(result.offers)} work offers"

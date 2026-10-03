@@ -178,9 +178,29 @@ def run_mcp(
     """
     server = build_server(settings, stub)
 
+    class CredentialedTestSession:
+        """Inject a synthetic per-request key into production tool calls."""
+
+        def __init__(self, inner: Any) -> None:
+            self._inner = inner
+
+        async def call_tool(
+            self,
+            name: str,
+            arguments: dict[str, Any] | None = None,
+            **kwargs: Any,
+        ) -> Any:
+            payload = dict(arguments or {})
+            if name != "probe_secret":
+                payload.setdefault("player_context", {"api_key": "wae_test_key"})
+            return await self._inner.call_tool(name, payload, **kwargs)
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._inner, name)
+
     async def _main() -> None:
         async with connect(server._mcp_server) as session:
-            await scenario(session)
+            await scenario(CredentialedTestSession(session))
 
     asyncio.run(_main())
 

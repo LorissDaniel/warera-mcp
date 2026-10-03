@@ -14,7 +14,9 @@ from warera_mcp.mcp_server.responses import quoted, success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
+    PlayerContextInput,
     RequiredIdentifier,
+    player_context_credentials,
 )
 
 GET_PLAYER_COMPANIES_DESCRIPTION = (
@@ -43,6 +45,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_player_companies")
     async def get_player_companies(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         user_id: Annotated[
             str | None,
             Field(
@@ -78,12 +81,14 @@ def register(mcp: FastMCP) -> None:
         ] = True,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.companies.get_player_companies(
             user_id=user_id,
             username=username,
             limit=limit,
             offset=offset,
             include_bonus=include_bonus,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         returned = len(result.companies)
@@ -106,15 +111,18 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_company_overview")
     async def get_company_overview(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         company_id: RequiredIdentifier,
         include_region_context: Annotated[
             bool, Field(default=False, description="Also resolve the company's region.")
         ] = False,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.companies.get_company_overview(
             company_id=company_id,
             include_region_context=include_region_context,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         name = result.company.name or result.company.id

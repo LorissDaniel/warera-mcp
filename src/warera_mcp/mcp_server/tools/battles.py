@@ -16,8 +16,10 @@ from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
     OpaqueCursor,
+    PlayerContextInput,
     RequiredIdentifier,
     SmallLimit,
+    player_context_credentials,
 )
 
 
@@ -70,6 +72,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("search_battles")
     async def search_battles(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         country_id: Annotated[
             str | None,
             Field(
@@ -86,11 +89,13 @@ def register(mcp: FastMCP) -> None:
         cursor: OpaqueCursor = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.battles.search_battles(
             country_id=country_id,
             is_active=is_active,
             limit=limit,
             cursor=cursor,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         return success_result(
@@ -107,6 +112,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_battle")
     async def get_battle(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         battle_id: RequiredIdentifier,
         include_live_status: Annotated[
             bool, Field(default=True, description="Also fetch the live round snapshot.")
@@ -116,10 +122,12 @@ def register(mcp: FastMCP) -> None:
         ] = False,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.battles.get_battle(
             battle_id=battle_id,
             include_live_status=include_live_status,
             include_history=include_history,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         state = "active" if result.battle.is_active else "not active"

@@ -1,6 +1,6 @@
 """Credential handling and isolation at the MCP boundary.
 
-Neither v1 tool requires credentials, so these tests exercise the seam directly:
+Every v1 tool receives request-scoped credentials, so these tests exercise the seam directly:
 the sanitized ``player_context`` parser, the error boundary's redaction, the
 client's per-request auth selection, and proof that a submitted credential value
 cannot surface in a tool result, a log record, an error payload or a cache key.
@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from mcp.server.fastmcp import FastMCP
+from mcp.shared.memory import create_connected_server_and_client_session as connect
 from mcp.types import CallToolResult, TextContent
 
 from tests.conftest import UpstreamStub, run_mcp
@@ -21,6 +22,7 @@ from warera_mcp import errors as app_errors
 from warera_mcp.auth.credentials import CredentialError, PlayerRequestContext, parse_player_context
 from warera_mcp.auth.requirements import CredentialKind
 from warera_mcp.config import Settings
+from warera_mcp.mcp_server.app import create_server
 from warera_mcp.mcp_server.errors import redactor_from_arguments, render_error, tool_errors
 from warera_mcp.warera.client import WareraQueryClient
 from warera_mcp.warera.errors import WareraServerError
@@ -145,6 +147,33 @@ async def test_client_sends_exactly_one_credential_per_request(
         await client.aclose()
 
 
+async def test_public_operations_support_anonymous_api_key_and_jwt_calls(
+    settings: Settings, stub: UpstreamStub, cache: Any
+) -> None:
+    from warera_mcp.cache.public_ttl import PublicTtlCache
+
+    stub.route("itemTrading.getPrices", {"iron": 1.0})
+    client = WareraQueryClient(
+        settings, cache=PublicTtlCache(max_entries=8, enabled=False), transport=stub.transport()
+    )
+    spec = get_procedure("itemTrading.getPrices")
+    try:
+        await client.query(spec, {})
+        await client.query(spec, {}, credentials=PlayerRequestContext(api_key=SECRET))
+        await client.query(
+            spec,
+            {},
+            credentials=PlayerRequestContext(jwt="header.payload.signature"),
+        )
+    finally:
+        await client.aclose()
+
+    headers = stub.headers_for(spec.name)
+    assert "x-api-key" not in headers[0] and "cookie" not in headers[0]
+    assert headers[1]["x-api-key"] == SECRET and "cookie" not in headers[1]
+    assert headers[2]["cookie"] == "jwt=header.payload.signature" and "x-api-key" not in headers[2]
+
+
 async def test_credentials_are_never_logged(
     settings: Settings, stub: UpstreamStub, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -208,19 +237,58 @@ def test_real_missing_authentication_mapping_carries_the_cleartext_warning() -> 
     assert "clear" in (error.user_message or "").lower()
 
 
-def test_v1_tools_require_no_credentials(settings: Settings, stub: UpstreamStub) -> None:
-    """The public tool surface must never ask for a credential."""
+def test_v1_tools_accept_optional_request_credentials(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    """The public tool surface accepts an optional per-request credential context."""
     stub.route("itemTrading.getPrices", {"iron": 1.0})
 
     async def scenario(session: Any) -> None:
         tools = await session.list_tools()
         assert all(
-            "player_context" not in tool.inputSchema.get("properties", {}) for tool in tools.tools
+            "player_context" in tool.inputSchema.get("properties", {})
+            and "player_context" not in tool.inputSchema.get("required", [])
+            for tool in tools.tools
         )
         result = await session.call_tool("get_market_price", {"item_code": "iron"})
         assert result.isError is False
 
     run_mcp(settings, stub, scenario)
+
+
+def test_concurrent_mcp_users_send_only_their_own_api_keys(stub: UpstreamStub) -> None:
+    """Concurrent tool calls must never cross-contaminate request credentials."""
+    stub.route("itemTrading.getPrices", {"iron": 1.0})
+    settings = Settings(
+        cache_enabled=False,
+        max_retries=0,
+        outbound_rate_per_second=1000,
+        outbound_rate_burst=1000,
+    )
+    server = create_server(settings, transport=stub.transport())
+
+    async def scenario() -> None:
+        async with connect(server._mcp_server) as session:
+            results = await asyncio.gather(
+                session.call_tool(
+                    "get_market_price",
+                    {"item_code": "iron", "player_context": {"api_key": "wae_user_a"}},
+                ),
+                session.call_tool(
+                    "get_market_price",
+                    {"item_code": "iron", "player_context": {"api_key": "wae_user_b"}},
+                ),
+            )
+            assert all(result.isError is False for result in results)
+
+    asyncio.run(scenario())
+    sent_keys = sorted(
+        headers["x-api-key"] for headers in stub.headers_for("itemTrading.getPrices")
+    )
+    assert sent_keys == [
+        "wae_user_a",
+        "wae_user_b",
+    ]
 
 
 def test_secret_can_never_appear_in_a_cache_key() -> None:

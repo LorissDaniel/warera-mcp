@@ -560,7 +560,7 @@ def test_cursor_is_forwarded_to_the_upstream(settings: Settings, stub: UpstreamS
     assert stub.inputs("event.getEventsPaginated") == [{"limit": 3, "cursor": "opaque-cursor"}]
 
 
-def test_no_credential_input_is_required_by_any_v1_tool(
+def test_every_v1_tool_accepts_optional_request_credentials(
     settings: Settings, stub: UpstreamStub
 ) -> None:
     seed_public_routes(stub)
@@ -568,7 +568,8 @@ def test_no_credential_input_is_required_by_any_v1_tool(
     async def scenario(session: Any) -> None:
         tools = await session.list_tools()
         for tool in tools.tools:
-            assert "player_context" not in tool.inputSchema.get("properties", {}), tool.name
+            assert "player_context" in tool.inputSchema.get("properties", {}), tool.name
+            assert "player_context" not in tool.inputSchema.get("required", []), tool.name
 
         result = await session.call_tool("get_market_price", {"item_code": "iron"})
         assert result.isError is False

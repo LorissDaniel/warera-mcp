@@ -54,7 +54,9 @@ def test_unique_match_with_unchecked_candidates_carries_a_warning(
     async def main() -> None:
         server = create_server(settings, transport=httpx.MockTransport(handler))
         async with connect(server._mcp_server) as session:
-            result = await session.call_tool("get_player", {"username": "kiro"})
+            result = await session.call_tool(
+                "get_player", {"username": "kiro", "player_context": {"api_key": "wae_test_key"}}
+            )
             assert result.isError is False
             warnings = result.structuredContent["warnings"]
             assert any("could not be checked" in warning for warning in warnings)
@@ -261,7 +263,7 @@ def test_oversized_upstream_responses_still_map_to_schema_changed() -> None:
     assert error.code is ErrorCode.UPSTREAM_SCHEMA_CHANGED
 
 
-# --------------------------------------------------- L3: anonymous access refused
+# ----------------------------------------------- L3: upstream auth rejection
 def test_refused_anonymous_call_is_not_blamed_on_a_credential() -> None:
     error = map_upstream_error(
         WareraAuthError(401),
@@ -275,12 +277,12 @@ def test_refused_anonymous_call_is_not_blamed_on_a_credential() -> None:
     assert error.action is ErrorAction.CONTACT_OPERATOR
 
 
-def test_refused_anonymous_call_end_to_end(settings: Settings, stub: UpstreamStub) -> None:
+def test_rejected_request_credential_end_to_end(settings: Settings, stub: UpstreamStub) -> None:
     stub.route_status("itemTrading.getPrices", 401)
 
     async def scenario(session: Any) -> None:
         result = await session.call_tool("get_market_price", {"item_code": "iron"})
-        assert error_code(result) == "UPSTREAM_SCHEMA_CHANGED"
+        assert error_code(result) == "AUTHENTICATION_REJECTED"
         assert "UNKNOWN" not in result.content[0].text
 
     run_mcp(settings, stub, scenario)

@@ -11,7 +11,13 @@ from pydantic import Field
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, RequiredIdentifier, SmallLimit
+from warera_mcp.mcp_server.tools.base import (
+    READ_ONLY_ANNOTATIONS,
+    PlayerContextInput,
+    RequiredIdentifier,
+    SmallLimit,
+    player_context_credentials,
+)
 
 GET_BATTLE_RANKING_DESCRIPTION = (
     "Get a battle leaderboard by damage or points for players, countries, or military units on one "
@@ -29,6 +35,7 @@ def register(mcp: FastMCP) -> None:
     @tool_errors("get_battle_ranking")
     async def get_battle_ranking(
         ctx: ToolContext,
+        player_context: PlayerContextInput,
         battle_id: RequiredIdentifier,
         entity_type: Annotated[
             Literal["user", "country", "mu"],
@@ -45,12 +52,14 @@ def register(mcp: FastMCP) -> None:
         limit: SmallLimit = 5,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
         result = await runtime.services.rankings.get_battle_ranking(
             battle_id=battle_id,
             entity_type=entity_type,
             side=side,
             metric=metric,
             limit=limit,
+            credentials=credentials,
             correlation_id=call_id(ctx),
         )
         summary = (
