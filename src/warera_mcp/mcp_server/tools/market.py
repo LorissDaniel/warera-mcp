@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult
 from pydantic import Field
 
+from warera_mcp.domain.item_catalog import WARERA_ITEM_CODES
+from warera_mcp.domain.models import ItemCatalogResult
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
@@ -16,6 +19,17 @@ from warera_mcp.mcp_server.tools.base import (
     SAFE_TEXT_PATTERN,
     PlayerContextInput,
     player_context_credentials,
+)
+
+GET_ITEM_CATALOG_DESCRIPTION = (
+    "Get the complete local catalog of canonical WarEra item codes. This is not a translated "
+    "alias list, does not query upstream, and does not include prices or production recipes."
+)
+
+GET_MARKET_PRICES_DESCRIPTION = (
+    "Get the complete current catalog of global quoted prices for all known items, sorted by "
+    "price. By default no items are omitted; an explicit limit is optional. This is not an "
+    "order book, production-profit calculation, or market average."
 )
 
 GET_MARKET_PRICE_DESCRIPTION = (
@@ -67,6 +81,65 @@ def register(mcp: FastMCP) -> None:
             result,
             summary=f"{result.item_code} global price is {result.price}",
             operation="get_market_price",
+            max_bytes=runtime.settings.max_output_bytes,
+        )
+
+    @mcp.tool(
+        name="get_item_catalog",
+        description=GET_ITEM_CATALOG_DESCRIPTION,
+        annotations=READ_ONLY_ANNOTATIONS,
+    )
+    @tool_errors("get_item_catalog")
+    async def get_item_catalog(
+        ctx: ToolContext, player_context: PlayerContextInput
+    ) -> CallToolResult:
+        runtime = runtime_of(ctx)
+        result = ItemCatalogResult(
+            observed_at=datetime.now(UTC),
+            item_codes=list(WARERA_ITEM_CODES),
+            catalog_version="manual-v1",
+        )
+        return success_result(
+            result,
+            summary=f"{len(result.item_codes)} canonical WarEra item codes",
+            operation="get_item_catalog",
+            max_bytes=runtime.settings.max_output_bytes,
+        )
+
+    @mcp.tool(
+        name="get_market_prices",
+        description=GET_MARKET_PRICES_DESCRIPTION,
+        annotations=READ_ONLY_ANNOTATIONS,
+    )
+    @tool_errors("get_market_prices")
+    async def get_market_prices(
+        ctx: ToolContext,
+        player_context: PlayerContextInput,
+        limit: Annotated[
+            int | None,
+            Field(
+                default=None,
+                ge=1,
+                le=5000,
+                description="Optional maximum item prices; omit to return the complete catalog.",
+            ),
+        ] = None,
+    ) -> CallToolResult:
+        runtime = runtime_of(ctx)
+        credentials = player_context_credentials(player_context)
+        result = await runtime.services.market.get_market_prices(
+            limit=limit,
+            credentials=credentials,
+            correlation_id=call_id(ctx),
+        )
+        summary = f"{len(result.prices)} global item prices"
+        if result.prices:
+            top = next(iter(result.prices.items()))
+            summary += f"; highest quoted price: {top[0]}={top[1]}"
+        return success_result(
+            result,
+            summary=summary,
+            operation="get_market_prices",
             max_bytes=runtime.settings.max_output_bytes,
         )
 
@@ -170,6 +243,8 @@ def register(mcp: FastMCP) -> None:
 
 
 __all__ = [
+    "GET_ITEM_CATALOG_DESCRIPTION",
+    "GET_MARKET_PRICES_DESCRIPTION",
     "GET_MARKET_PRICE_DESCRIPTION",
     "GET_WORK_MARKET_DESCRIPTION",
     "SEARCH_MARKET_DESCRIPTION",

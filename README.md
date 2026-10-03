@@ -37,7 +37,7 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 | Players | `get_player`, `get_player_companies` |
 | Companies | `get_company_overview` |
 | World | `get_country_overview`, `get_country_wars`, `get_region` |
-| Market | `get_market_price`, `search_market`, `get_work_market` |
+| Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
 | Battles | `search_battles`, `get_battle`, `get_battle_ranking` |
 | Events | `search_events` |
 

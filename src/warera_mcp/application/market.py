@@ -22,6 +22,7 @@ from warera_mcp.auth.credentials import PlayerRequestContext
 from warera_mcp.domain.models import (
     GetWorkMarketResult,
     MarketPrice,
+    MarketPricesResult,
     OrderBookResult,
     WageStats,
     WorkOffer,
@@ -86,6 +87,30 @@ class MarketService:
             warnings=[],
             item_code=item_code,
             price=price,
+            freshness_seconds=round(freshness, 1),
+        )
+
+    async def get_market_prices(
+        self,
+        *,
+        limit: int | None,
+        credentials: PlayerRequestContext | None = None,
+        correlation_id: str | None = None,
+    ) -> MarketPricesResult:
+        read = await self._catalog.read_prices(
+            credentials=credentials, correlation_id=correlation_id
+        )
+        prices = normalize_prices(read.data)
+        ordered = dict(sorted(prices.items(), key=lambda entry: (-entry[1], entry[0])))
+        warnings: list[str] = []
+        if limit is not None and len(ordered) > limit:
+            warnings.append(f"price catalog truncated to {limit} items")
+            ordered = dict(list(ordered.items())[:limit])
+        freshness = max(0.0, (datetime.now(UTC) - read.observed_at).total_seconds())
+        return MarketPricesResult(
+            observed_at=read.observed_at,
+            warnings=warnings,
+            prices=ordered,
             freshness_seconds=round(freshness, 1),
         )
 

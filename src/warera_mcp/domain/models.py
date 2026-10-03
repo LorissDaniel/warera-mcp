@@ -277,6 +277,22 @@ class MarketPrice(ToolResult):
     freshness_seconds: float | None = None
 
 
+class ItemCatalogResult(ToolResult):
+    """Output of the local WarEra item-code catalog."""
+
+    item_codes: list[str] = Field(default_factory=list)
+    source: Literal["local_verified_catalog"] = "local_verified_catalog"
+    catalog_version: str
+
+
+class MarketPricesResult(ToolResult):
+    """Output of ``get_market_prices``."""
+
+    prices: dict[str, float] = Field(default_factory=dict)
+    source: Literal["global_prices"] = "global_prices"
+    freshness_seconds: float | None = None
+
+
 class OrderBookLevel(DomainModel):
     """One visible price level; order owners are intentionally omitted."""
 

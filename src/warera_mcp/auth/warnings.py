@@ -18,9 +18,11 @@ CLEARTEXT_CREDENTIAL_WARNING = (
 )
 
 CREDENTIAL_ASK_INSTRUCTION = (
-    "Before asking the user for a WarEra API key or JWT, show them the cleartext "
-    "handling warning. Credentials are identifiers' secrets, not player identity: "
-    "a user ID or username never authenticates a caller."
+    "Do not ask for credentials pre-emptively. Call the requested tool first; if it "
+    "returns a missing-authentication error, explain which credential kind is required. "
+    "Before asking the user for a WarEra API key or JWT, show them the cleartext handling "
+    "warning. Credentials are identifiers' secrets, not player identity: a user ID or "
+    "username never authenticates a caller."
 )
 
 __all__ = ["CLEARTEXT_CREDENTIAL_WARNING", "CREDENTIAL_ASK_INSTRUCTION"]

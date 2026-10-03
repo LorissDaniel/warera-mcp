@@ -374,6 +374,43 @@ def test_get_country_wars_is_partial_when_battles_fail(
     run_mcp(settings, stub, scenario)
 
 
+def test_get_item_catalog_is_local_and_complete(settings: Settings, stub: UpstreamStub) -> None:
+    async def scenario(session: Any) -> None:
+        result = await session.call_tool("get_item_catalog", {})
+        payload = result.structuredContent
+        assert result.isError is False
+        assert payload["source"] == "local_verified_catalog"
+        assert payload["item_codes"] == [
+            "ammo",
+            "bread",
+            "case1",
+            "case2",
+            "coca",
+            "cocain",
+            "concrete",
+            "cookedFish",
+            "fish",
+            "grain",
+            "heavyAmmo",
+            "iron",
+            "lead",
+            "limestone",
+            "lightAmmo",
+            "livestock",
+            "oil",
+            "paper",
+            "petroleum",
+            "scraps",
+            "steak",
+            "steel",
+            "wood",
+            "woodenCase",
+        ]
+        assert stub.requests == []
+
+    run_mcp(settings, stub, scenario)
+
+
 def test_get_market_price_and_unknown_item(settings: Settings, stub: UpstreamStub) -> None:
     seed_public_routes(stub)
 
@@ -385,6 +422,23 @@ def test_get_market_price_and_unknown_item(settings: Settings, stub: UpstreamStu
 
         unknown = await session.call_tool("get_market_price", {"item_code": "unobtainium"})
         assert error_code(unknown) == "NOT_FOUND"
+
+    run_mcp(settings, stub, scenario)
+
+
+def test_get_market_prices_returns_the_full_bounded_catalog(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    seed_public_routes(stub)
+    stub.route("itemTrading.getPrices", {"iron": 12.5, "bread": 3.25, "wood": 2.0})
+
+    async def scenario(session: Any) -> None:
+        result = await session.call_tool("get_market_prices", {"limit": 2})
+        payload = result.structuredContent
+        assert result.isError is False
+        assert payload["prices"] == {"iron": 12.5, "bread": 3.25}
+        assert payload["source"] == "global_prices"
+        assert any("truncated" in warning for warning in payload["warnings"])
 
     run_mcp(settings, stub, scenario)
 

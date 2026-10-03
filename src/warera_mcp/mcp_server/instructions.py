@@ -17,6 +17,10 @@ game state, and it does not expose a generic "call any endpoint" tool.
 How to use it:
 - Pick the tool that matches the user's intent; each tool answers one cohesive
   question and already joins the endpoints needed for it.
+- When an item name is uncertain or natural-language rather than a WarEra code,
+  call `get_item_catalog` first. It exposes the complete locally verified canonical
+  item-code catalog without a network request; match the user's language to one of
+  those codes and never invent an item code.
 - Prefer stable identifiers (player/company/country/region/battle ids). A
   username is a lookup value, not an identity: resolution requires an exact,
   unambiguous match, otherwise the tool asks you to disambiguate.
