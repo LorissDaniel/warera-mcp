@@ -18,6 +18,7 @@ from warera_mcp.config import Settings
 from warera_mcp.middleware.client_auth import BearerTokenAuthMiddleware
 from warera_mcp.middleware.headers import SecurityHeadersMiddleware
 from warera_mcp.middleware.request_limits import ClientRateLimitMiddleware
+from warera_mcp.observability.logging import make_logger
 
 _HEALTH_BODY = json.dumps({"status": "ok"}).encode("utf-8")
 
@@ -47,6 +48,7 @@ def build_http_app(mcp: FastMCP, settings: Settings) -> Any:
         per_minute=settings.client_rate_limit_per_minute,
         burst=settings.client_rate_limit_burst,
         exempt_paths=exempt,
+        trusted_proxy_hops=settings.trusted_proxy_hops,
     )
     app = SecurityHeadersMiddleware(app)
     if settings.enable_cors and settings.cors_allow_origins:
@@ -74,6 +76,10 @@ def run_stdio(mcp: FastMCP) -> None:
 def run_streamable_http(mcp: FastMCP, settings: Settings) -> None:
     """Serve over stateless Streamable HTTP using uvicorn."""
     import uvicorn
+
+    log = make_logger("warera_mcp.transport")
+    for notice in settings.exposure_warnings():
+        log.warning(notice)
 
     uvicorn.run(
         build_http_app(mcp, settings),

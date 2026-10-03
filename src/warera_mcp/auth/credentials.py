@@ -21,6 +21,7 @@ from the transport layer would invert the dependency direction.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -39,6 +40,12 @@ PLAYER_CONTEXT_FIELDS: frozenset[str] = frozenset(
 )
 
 _IDENTIFIER_FIELDS = ("warera_user_id", "warera_username")
+
+#: WarEra session tokens are standard three-segment JWTs (``header.payload.signature``,
+#: base64url). The value is sent as a ``Cookie`` header, so anything outside this
+#: alphabet -- notably ``;``, ``,``, quotes, whitespace and backslashes -- could
+#: smuggle extra cookies or break header framing and is rejected up front.
+_JWT_SHAPE = re.compile(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+=*")
 
 
 class CredentialError(ValueError):
@@ -74,7 +81,10 @@ class PlayerRequestContext(BaseModel):
     @field_validator("jwt")
     @classmethod
     def _validate_jwt(cls, value: SecretStr | None) -> SecretStr | None:
-        return _validate_secret(value, JWT_MAX_LENGTH)
+        checked = _validate_secret(value, JWT_MAX_LENGTH)
+        if checked is not None and _JWT_SHAPE.fullmatch(checked.get_secret_value()) is None:
+            raise ValueError("credential value is not a JWT")
+        return checked
 
     # -- capability queries ---------------------------------------------------
     def available_kinds(self) -> frozenset[CredentialKind]:

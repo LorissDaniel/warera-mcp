@@ -13,6 +13,7 @@ where exceptions become MCP results. Consequences:
 
 from __future__ import annotations
 
+import asyncio
 import functools
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, TypeVar
@@ -23,6 +24,7 @@ from warera_mcp import errors as app_errors
 from warera_mcp.application.common import map_credential_error
 from warera_mcp.auth.credentials import CredentialError
 from warera_mcp.auth.redaction import SecretRedactor
+from warera_mcp.mcp_server.context import runtime_of
 from warera_mcp.observability.logging import make_logger
 
 F = TypeVar("F", bound=Callable[..., Awaitable[CallToolResult]])
@@ -49,6 +51,17 @@ def correlation_from_arguments(arguments: Mapping[str, Any]) -> str | None:
     context = arguments.get("ctx")
     request_id = getattr(context, "request_id", None)
     return None if request_id is None else str(request_id)
+
+
+def deadline_from_arguments(arguments: Mapping[str, Any]) -> float | None:
+    """Return the configured per-call deadline, or ``None`` when no runtime is attached."""
+    context = arguments.get("ctx")
+    if context is None:
+        return None
+    try:
+        return float(runtime_of(context).settings.tool_deadline_seconds)
+    except (AttributeError, LookupError, ValueError):
+        return None
 
 
 def render_error(
@@ -95,12 +108,26 @@ def tool_errors(operation: str) -> Callable[[F], F]:
         async def wrapper(*args: Any, **kwargs: Any) -> CallToolResult:
             redactor = redactor_from_arguments(kwargs)
             correlation_id = correlation_from_arguments(kwargs)
+            deadline = deadline_from_arguments(kwargs)
             try:
-                return await fn(*args, **kwargs)
+                # One wall-clock budget covers retries, backoff sleeps, limiter
+                # queueing and fan-out, so a slow upstream cannot hold a call open.
+                async with asyncio.timeout(deadline):
+                    return await fn(*args, **kwargs)
             except app_errors.AppError as error:
                 return render_error(error, redactor=redactor)
             except CredentialError as error:
                 return render_error(map_credential_error(error, operation), redactor=redactor)
+            except TimeoutError:
+                return render_error(
+                    app_errors.upstream_timeout(
+                        f"the request exceeded its {deadline:g}s time budget"
+                        if deadline is not None
+                        else "the request exceeded its time budget",
+                        operation,
+                    ),
+                    redactor=redactor,
+                )
             except Exception as exception:
                 _log_internal_error(kwargs, operation, correlation_id, exception)
                 return render_error(

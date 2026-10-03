@@ -81,7 +81,6 @@ class PublicTtlCache:
         self._clock = clock
         self._entries: OrderedDict[str, _Entry] = OrderedDict()
         self._inflight: dict[str, asyncio.Task[Any]] = {}
-        self._lock = asyncio.Lock()
         self.stats = CacheStats()
 
     @staticmethod
@@ -106,46 +105,55 @@ class PublicTtlCache:
         ttl_seconds: float,
         loader: Callable[[], Awaitable[T]],
     ) -> tuple[T, CacheOutcome]:
-        """Return a cached value or load it, coalescing concurrent identical keys."""
+        """Return a cached value or load it, coalescing concurrent identical keys.
+
+        The load runs in its own task that is *shared* by every waiter. Each waiter
+        awaits it through :func:`asyncio.shield`, so cancelling one waiter (for
+        example a client disconnecting) never cancels the load for the others, and
+        the result is stored by a completion callback rather than by whichever
+        waiter happened to start the load.
+        """
         if not self._enabled or ttl_seconds <= 0:
             self.stats.bypasses += 1
             return await loader(), CacheOutcome.BYPASS
 
+        # No ``await`` occurs between the lookup and the registration below, so the
+        # section is atomic with respect to other coroutines on this event loop.
         now = self._clock()
-        async with self._lock:
-            entry = self._entries.get(key)
-            if entry is not None:
-                if entry.expires_at > now:
-                    self._entries.move_to_end(key)
-                    self.stats.hits += 1
-                    return entry.value, CacheOutcome.HIT
-                del self._entries[key]
-                self.stats.evictions += 1
+        entry = self._entries.get(key)
+        if entry is not None:
+            if entry.expires_at > now:
+                self._entries.move_to_end(key)
+                self.stats.hits += 1
+                return entry.value, CacheOutcome.HIT
+            del self._entries[key]
+            self.stats.evictions += 1
 
-            inflight = self._inflight.get(key)
-            if inflight is None:
-                inflight = asyncio.ensure_future(loader())
-                self._inflight[key] = inflight
-                is_leader = True
-            else:
-                self.stats.joins += 1
-                is_leader = False
+        task: asyncio.Task[Any] | None = self._inflight.get(key)
+        if task is None:
+            task = asyncio.ensure_future(loader())
+            self._inflight[key] = task
+            task.add_done_callback(lambda done: self._finish(key, ttl_seconds, done))
+            outcome = CacheOutcome.MISS
+        else:
+            self.stats.joins += 1
+            outcome = CacheOutcome.JOIN
 
-        if not is_leader:
-            return await inflight, CacheOutcome.JOIN
+        value: T = await asyncio.shield(task)
+        return value, outcome
 
-        try:
-            value = await inflight
-        except BaseException:
-            async with self._lock:
-                self._inflight.pop(key, None)
-            raise
-
-        async with self._lock:
-            self._inflight.pop(key, None)
-            self._store(key, value, ttl_seconds)
+    def _finish(self, key: str, ttl_seconds: float, task: asyncio.Task[Any]) -> None:
+        """Completion callback: release the in-flight slot and store a success."""
+        if self._inflight.get(key) is task:
+            del self._inflight[key]
+        if task.cancelled():
+            return
+        if task.exception() is not None:
+            # Retrieving the exception marks it handled; every waiter still
+            # receives it through its own ``await``.
+            return
         self.stats.misses += 1
-        return value, CacheOutcome.MISS
+        self._store(key, task.result(), ttl_seconds)
 
     def _store(self, key: str, value: Any, ttl_seconds: float) -> None:
         self._entries[key] = _Entry(value=value, expires_at=self._clock() + ttl_seconds)

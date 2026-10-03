@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from warera_mcp.application import ServiceRuntime, build_services
 from warera_mcp.cache.public_ttl import PublicTtlCache
@@ -24,8 +25,6 @@ from warera_mcp.observability.logging import configure_logging, make_logger
 from warera_mcp.observability.metrics import InMemoryMetrics, Metrics
 from warera_mcp.observability.tracing import NullTracer, Tracer
 from warera_mcp.warera.client import WareraQueryClient
-
-LifespanFactory = "callable"
 
 
 def create_runtime(
@@ -85,6 +84,28 @@ def _make_lifespan(
     return lifespan
 
 
+def build_transport_security(settings: Settings) -> TransportSecuritySettings | None:
+    """Host/Origin validation (DNS-rebinding protection) from ``trusted_hosts``.
+
+    When hosts are configured, only those ``Host`` values -- and, if CORS is
+    enabled, those origins -- are accepted. With nothing configured the SDK's own
+    loopback default applies.
+    """
+    if not settings.trusted_hosts:
+        return None
+    hosts: list[str] = []
+    for host in settings.trusted_hosts:
+        hosts.append(host)
+        if ":" not in host:
+            # A Host header may or may not carry a port; accept both forms.
+            hosts.append(f"{host}:*")
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=hosts,
+        allowed_origins=list(settings.cors_allow_origins),
+    )
+
+
 def create_server(
     settings: Settings | None = None,
     *,
@@ -105,6 +126,7 @@ def create_server(
         stateless_http=resolved.stateless_http,
         json_response=resolved.json_response,
         max_request_body_size=resolved.max_request_body_bytes,
+        transport_security=build_transport_security(resolved),
         log_level=resolved.log_level,
         lifespan=_make_lifespan(  # type: ignore[arg-type]
             resolved, transport=transport, metrics=metrics, tracer=tracer
@@ -121,4 +143,9 @@ def iter_approved_operations() -> Iterator[str]:
     yield from sorted(READ_ONLY_PROCEDURES)
 
 
-__all__ = ["create_runtime", "create_server", "iter_approved_operations"]
+__all__ = [
+    "build_transport_security",
+    "create_runtime",
+    "create_server",
+    "iter_approved_operations",
+]

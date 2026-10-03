@@ -42,9 +42,11 @@ from warera_mcp.domain.models import (
     WorkOffer,
 )
 from warera_mcp.warera.schemas import (
+    MAX_CURSOR_LENGTH,
     Record,
     as_mapping,
     as_sequence,
+    clean_name,
     coerce_bool,
     coerce_float,
     coerce_int,
@@ -59,6 +61,9 @@ from warera_mcp.warera.schemas import (
 _TAG = re.compile(r"<[^>]{0,200}>")
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _WHITESPACE = re.compile(r"\s+")
+#: Cursors are opaque tokens echoed back to the caller, so *any* control character
+#: (newline and tab included) disqualifies one.
+_CURSOR_FORBIDDEN = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
 MAX_EXTERNAL_TEXT = 280
 
@@ -109,7 +114,16 @@ def _integer(record: Record, *keys: str) -> int | None:
 
 
 def _text(record: Record, *keys: str) -> str | None:
-    return coerce_str(_pick(record, *keys))
+    """Short upstream text (names, codes, labels): sanitized and length-capped."""
+    return clean_name(_pick(record, *keys))
+
+
+def _cursor(record: Record, *keys: str) -> str | None:
+    """Opaque pagination cursor: kept verbatim but bounded and control-free."""
+    value = coerce_str(_pick(record, *keys))
+    if value is None or len(value) > MAX_CURSOR_LENGTH or _CURSOR_FORBIDDEN.search(value):
+        return None
+    return value
 
 
 def _flag(record: Record, *keys: str) -> bool | None:
@@ -162,7 +176,7 @@ def _child_records(record: Record, *keys: str) -> list[Record]:
 def page_info(payload: object) -> PageInfo:
     """Extract an opaque cursor and a best-effort continuation hint."""
     record = record_of(payload)
-    cursor = _text(record, "nextCursor", "next_cursor", "cursor")
+    cursor = _cursor(record, "nextCursor", "next_cursor", "cursor")
     return PageInfo(next_cursor=cursor, has_more=cursor is not None)
 
 

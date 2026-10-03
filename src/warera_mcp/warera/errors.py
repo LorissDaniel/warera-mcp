@@ -43,6 +43,13 @@ class WareraCircuitOpen(WareraError):
         self.retry_after_seconds = retry_after_seconds
 
 
+class WareraOverloaded(WareraError):
+    """Too many upstream reads are already queued; the request was shed locally."""
+
+    def __init__(self) -> None:
+        super().__init__("too many upstream reads are queued")
+
+
 class WareraHTTPError(WareraError):
     """A non-success HTTP status from the upstream host."""
 
@@ -100,6 +107,7 @@ __all__ = [
     "WareraError",
     "WareraHTTPError",
     "WareraMissingCredential",
+    "WareraOverloaded",
     "WareraRateLimited",
     "WareraResponseTooLarge",
     "WareraSchemaError",

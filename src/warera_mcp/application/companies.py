@@ -34,7 +34,7 @@ from warera_mcp.domain.normalization import (
     normalize_region_summary,
 )
 from warera_mcp.warera.client import UpstreamRead
-from warera_mcp.warera.schemas import as_sequence, coerce_str, record_of
+from warera_mcp.warera.schemas import as_sequence, extract_ident, record_of
 
 COMPANIES_BY_USER_PROCEDURE = "company.getCompanies"
 COMPANY_DETAIL_PROCEDURE = "company.getById"
@@ -55,7 +55,7 @@ def company_ids(payload: object) -> list[str]:
     sequence = as_sequence(payload)
     if sequence is None:
         return []
-    return [text for item in sequence if (text := coerce_str(item)) is not None]
+    return [text for item in sequence if (text := extract_ident(item)) is not None]
 
 
 class CompanyService:

@@ -41,7 +41,7 @@ from warera_mcp.warera.schemas import (
     Record,
     as_mapping,
     as_sequence,
-    coerce_str,
+    clean_name,
     extract_ident,
     record_of,
 )
@@ -59,7 +59,7 @@ def _match_country_records(records: Sequence[Record], name: str) -> list[Record]
     return [
         record
         for record in records
-        if (raw := coerce_str(record.raw("name"))) is not None and raw.casefold() == target
+        if (raw := clean_name(record.raw("name"))) is not None and raw.casefold() == target
     ]
 
 
@@ -67,7 +67,7 @@ def country_name_index(records: Sequence[Record]) -> dict[str, str]:
     index: dict[str, str] = {}
     for record in records:
         country_id = extract_ident(record.raw("_id")) or extract_ident(record.raw("id"))
-        name = coerce_str(record.raw("name"))
+        name = clean_name(record.raw("name"))
         if country_id and name:
             index[country_id] = name
     return index
@@ -251,7 +251,7 @@ class WorldService:
             matches = [
                 record
                 for record in _region_records(read.data)
-                if (raw := coerce_str(record.raw("name"))) is not None and raw.casefold() == target
+                if (raw := clean_name(record.raw("name"))) is not None and raw.casefold() == target
             ]
             if not matches:
                 raise app_errors.not_found(

@@ -15,6 +15,7 @@ text cannot become part of an error message.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -23,6 +24,20 @@ from typing import Any
 from warera_mcp.warera.errors import WareraAPIError, WareraSchemaError
 
 _MISSING = object()
+
+#: Hard caps for strings that originate in the game world and are echoed to a model.
+MAX_NAME_LENGTH = 80
+MAX_IDENT_LENGTH = 128
+MAX_CURSOR_LENGTH = 512
+
+# C0/C1 controls (except tab/newline/CR, which collapse to a space below), plus
+# zero-width and bidirectional-override characters that can visually reorder or
+# hide text. Names are player-chosen, so none of these may reach the output.
+_NAME_STRIP = re.compile(
+    "[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\u200b-\u200d\u2060\ufeff\u202a-\u202e\u2066-\u2069]"
+)
+_NAME_WHITESPACE = re.compile(r"\s+")
+_IDENT_FORBIDDEN = re.compile("[\x00-\x20\x7f-\x9f]")
 
 
 # --------------------------------------------------------------------------- helpers
@@ -45,6 +60,33 @@ def coerce_str(value: object) -> str | None:
     if isinstance(value, (int, float)):
         return str(value)
     return None
+
+
+def clean_name(value: object, *, max_length: int = MAX_NAME_LENGTH) -> str | None:
+    """Return a display name that is safe to place in model-facing output.
+
+    Player-controlled names are *data*, never instructions. This strips control,
+    zero-width and bidi-override characters, collapses all whitespace (so a name
+    cannot inject line breaks), and caps the length. Markup is left as-is on
+    purpose: a name that merely contains ``<`` must still match the same player
+    in exact-name lookups.
+    """
+    text = coerce_str(value)
+    if text is None:
+        return None
+    text = _NAME_WHITESPACE.sub(" ", _NAME_STRIP.sub("", text)).strip()
+    if not text:
+        return None
+    if len(text) > max_length:
+        return text[: max_length - 1].rstrip() + "\u2026"
+    return text
+
+
+def safe_ident(text: str) -> str | None:
+    """Accept an upstream identifier only if it is short and free of whitespace/controls."""
+    if not text or len(text) > MAX_IDENT_LENGTH or _IDENT_FORBIDDEN.search(text):
+        return None
+    return text
 
 
 def coerce_float(value: object) -> float | None:
@@ -98,8 +140,7 @@ def extract_ident(value: object) -> str | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, str):
-        stripped = value.strip()
-        return stripped or None
+        return safe_ident(value.strip())
     if isinstance(value, int):
         return str(value)
     return None
@@ -110,9 +151,9 @@ def extract_name(value: object) -> str | None:
     if isinstance(value, Mapping):
         for key in ("name", "username", "title"):
             if key in value:
-                return coerce_str(value[key])
+                return clean_name(value[key])
         return None
-    return coerce_str(value)
+    return clean_name(value)
 
 
 def parse_timestamp(value: object) -> tuple[datetime | None, bool]:
@@ -177,7 +218,11 @@ class Record:
         sequence = as_sequence(self.data.get(key))
         if sequence is None:
             return []
-        return [text for item in sequence if (text := coerce_str(item)) is not None]
+        return [
+            text
+            for item in sequence
+            if not isinstance(item, Mapping) and (text := extract_ident(item)) is not None
+        ]
 
     # -- scalars -------------------------------------------------------------
     def raw(self, key: str) -> Any:
@@ -187,7 +232,7 @@ class Record:
         return key in self.data and self.data[key] is not None
 
     def opt_str(self, key: str) -> str | None:
-        return coerce_str(self.data.get(key))
+        return clean_name(self.data.get(key))
 
     def ident(self, key: str) -> str | None:
         value = extract_ident(self.data.get(key))
@@ -323,9 +368,13 @@ def parse_trpc_envelope(payload: object) -> object:
 
 
 __all__ = [
+    "MAX_CURSOR_LENGTH",
+    "MAX_IDENT_LENGTH",
+    "MAX_NAME_LENGTH",
     "Record",
     "as_mapping",
     "as_sequence",
+    "clean_name",
     "coerce_bool",
     "coerce_float",
     "coerce_int",
@@ -336,4 +385,5 @@ __all__ = [
     "parse_timestamp",
     "parse_trpc_envelope",
     "record_of",
+    "safe_ident",
 ]

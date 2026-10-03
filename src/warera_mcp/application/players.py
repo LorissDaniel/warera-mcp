@@ -24,13 +24,13 @@ from warera_mcp.domain.enums import PlayerField
 from warera_mcp.domain.models import GetPlayerResult, PlayerProfile
 from warera_mcp.domain.normalization import normalize_player_lite
 from warera_mcp.warera.client import UpstreamRead
-from warera_mcp.warera.schemas import as_sequence, coerce_str
+from warera_mcp.warera.schemas import as_sequence, extract_ident
 
 PROFILE_PROCEDURE = "user.getUserLite"
 SEARCH_USERS_PROCEDURE = "search.searchUsers"
 
 #: Hard cap on candidate profiles fetched for one username lookup.
-MAX_CANDIDATE_PROFILES = 5
+MAX_CANDIDATE_PROFILES = 10
 
 DEFAULT_PLAYER_FIELDS: tuple[PlayerField, ...] = (
     PlayerField.PROFILE,
@@ -49,6 +49,7 @@ class ResolvedPlayer:
     resolved_by: Literal["user_id", "username"]
     observed_at: datetime
     reads: tuple[UpstreamRead, ...] = ()
+    warnings: tuple[str, ...] = ()
 
 
 def require_player_identifier(user_id: str | None, username: str | None, operation: str) -> None:
@@ -186,15 +187,33 @@ class PlayerResolver:
         target = username.casefold()
         matches: list[tuple[PlayerProfile, UpstreamRead]] = []
         reads: list[UpstreamRead] = [search_read]
-        for outcome in outcomes:
-            if not isinstance(outcome, UpstreamRead):
+        failures: list[app_errors.AppError] = []
+        for candidate_id, outcome in zip(candidate_ids, outcomes, strict=True):
+            if isinstance(outcome, app_errors.AppError):
+                failures.append(outcome)
                 continue
+            if isinstance(outcome, BaseException):
+                raise outcome  # a bug or cancellation, never a "no match"
             reads.append(outcome)
-            profile, _ = normalize_player_lite(outcome.data)
+            profile, _ = normalize_player_lite(outcome.data, default_id=candidate_id)
             if profile.username is not None and profile.username.casefold() == target:
                 matches.append((profile, outcome))
 
         if not matches:
+            if failures:
+                # Some candidates could not be checked, so "no such player" would be
+                # a false claim. Surface the real (retryable) failure instead.
+                raise failures[0]
+            saturated = len(candidate_ids) >= self._max_candidates
+            if saturated:
+                raise app_errors.not_found(
+                    f"no exact match for username '{username}' among the top "
+                    f"{len(candidate_ids)} search results; the name may be shadowed by "
+                    "similar names. Use the player's user_id instead.",
+                    operation,
+                    reason="username_not_in_top_candidates",
+                    candidate_count=len(candidate_ids),
+                )
             raise app_errors.not_found(
                 f"no player matched username '{username}' exactly",
                 operation,
@@ -209,11 +228,18 @@ class PlayerResolver:
             )
 
         profile, _ = matches[0]
+        notes: tuple[str, ...] = ()
+        if failures:
+            notes = (
+                f"{len(failures)} candidate profile(s) could not be checked; this is the only "
+                "exact match among those that were",
+            )
         return ResolvedPlayer(
             profile=profile,
             resolved_by="username",
             observed_at=composite_observed_at(reads),
             reads=tuple(reads),
+            warnings=notes,
         )
 
 
@@ -224,7 +250,7 @@ def _candidate_ids(payload: object, *, cap: int) -> list[str]:
         return []
     found: list[str] = []
     for item in sequence:
-        candidate = coerce_str(item)
+        candidate = extract_ident(item)
         if candidate is not None and candidate not in found:
             found.append(candidate)
         if len(found) >= cap:
@@ -254,7 +280,7 @@ class PlayerService:
             correlation_id=correlation_id,
             operation="get_player",
         )
-        warnings: list[str] = []
+        warnings: list[str] = list(resolved.warnings)
         if resolved.resolved_by == "username":
             warnings.append(
                 "resolved by exact username match against up to "

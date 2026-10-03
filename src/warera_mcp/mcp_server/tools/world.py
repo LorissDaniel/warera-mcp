@@ -10,7 +10,7 @@ from pydantic import Field
 
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
-from warera_mcp.mcp_server.responses import success_result
+from warera_mcp.mcp_server.responses import quoted, success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
@@ -70,7 +70,7 @@ def register(mcp: FastMCP) -> None:
             limit_regions=limit_regions,
             correlation_id=call_id(ctx),
         )
-        summary = f"Country {result.country.name or result.country.id}"
+        summary = f"Country {quoted(result.country.name or result.country.id)}"
         if result.country.population is not None:
             summary += f" (population {result.country.population})"
         if result.regions is not None:
@@ -109,9 +109,9 @@ def register(mcp: FastMCP) -> None:
             include_country=include_country,
             correlation_id=call_id(ctx),
         )
-        summary = f"Region {result.region.name or result.region.id}"
+        summary = f"Region {quoted(result.region.name or result.region.id)}"
         if result.country is not None and result.country.name:
-            summary += f" in {result.country.name}"
+            summary += f" in {quoted(result.country.name)}"
         return success_result(
             result,
             summary=summary,
@@ -154,7 +154,7 @@ def register(mcp: FastMCP) -> None:
             correlation_id=call_id(ctx),
         )
         summary = (
-            f"{result.country.name or result.country.id} is at war with "
+            f"{quoted(result.country.name or result.country.id)} is at war with "
             f"{len(result.opponents)} countr{'y' if len(result.opponents) == 1 else 'ies'}"
         )
         if result.active_battles is not None:

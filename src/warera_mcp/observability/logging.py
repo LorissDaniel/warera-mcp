@@ -75,6 +75,12 @@ class ConsoleFormatter(logging.Formatter):
         return base
 
 
+#: Third-party loggers that record request URLs. ``httpx`` logs every request line at
+#: INFO, including the query string, which carries player ids and search text.
+#: They are pinned to WARNING regardless of the application log level.
+_URL_LOGGING_LIBRARIES: tuple[str, ...] = ("httpx", "httpcore")
+
+
 def configure_logging(
     level: str = "INFO",
     *,
@@ -91,6 +97,8 @@ def configure_logging(
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(level.upper())
+    for name in _URL_LOGGING_LIBRARIES:
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

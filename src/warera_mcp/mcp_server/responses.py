@@ -21,10 +21,10 @@ def enforce_output_budget(structured: dict[str, Any], *, operation: str, max_byt
     encoded = json.dumps(structured, separators=(",", ":"), ensure_ascii=False)
     size = len(encoded.encode("utf-8"))
     if size > max_bytes:
-        raise app_errors.upstream_schema_changed(
-            "the projected response exceeded the configured output budget",
+        raise app_errors.output_too_large(
+            "the projected response exceeded the configured output budget; "
+            "request fewer rows or a narrower selection",
             operation,
-            reason="output_too_large",
             bytes=size,
             limit_bytes=max_bytes,
         )
@@ -41,10 +41,19 @@ def success_result(
     structured = model.to_structured()
     enforce_output_budget(structured, operation=operation, max_bytes=max_bytes)
     return CallToolResult(
-        content=[TextContent(type="text", text=summary)],
+        content=[TextContent(type="text", text=truncate_summary(summary))],
         structuredContent=structured,
         isError=False,
     )
+
+
+def quoted(name: str | None) -> str:
+    """Render a player-controlled name as a quoted literal inside a summary.
+
+    Quoting keeps game text visibly separate from the surrounding sentence so it
+    reads as data, and stripping embedded quotes stops it from closing the literal.
+    """
+    return '"' + (name or "").replace('"', "'") + '"'
 
 
 def truncate_summary(text: str, *, limit: int = 300) -> str:
@@ -55,4 +64,4 @@ def truncate_summary(text: str, *, limit: int = 300) -> str:
     return collapsed[: limit - 1].rstrip() + "\u2026"
 
 
-__all__ = ["enforce_output_budget", "success_result", "truncate_summary"]
+__all__ = ["enforce_output_budget", "quoted", "success_result", "truncate_summary"]

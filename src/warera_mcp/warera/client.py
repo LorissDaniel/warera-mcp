@@ -41,6 +41,7 @@ from warera_mcp.warera.errors import (
     WareraError,
     WareraHTTPError,
     WareraMissingCredential,
+    WareraOverloaded,
     WareraRateLimited,
     WareraResponseTooLarge,
     WareraSchemaError,
@@ -148,6 +149,7 @@ class WareraQueryClient:
             max_backoff_seconds=settings.retry_max_backoff_seconds,
             max_retry_after_seconds=settings.retry_max_retry_after_seconds,
         )
+        self._pending = 0
         self._closed = False
 
     # ------------------------------------------------------------------ lifecycle
@@ -234,7 +236,27 @@ class WareraQueryClient:
     ) -> UpstreamRead:
         if not self._breaker.allow():
             raise WareraCircuitOpen(self._breaker.retry_after())
+        try:
+            return await self._fetch_with_retries(
+                spec, params, auth_headers, auth_class, correlation_id
+            )
+        except WareraError:
+            raise
+        except BaseException:
+            # Cancellation (client disconnect, tool deadline) or an unexpected bug
+            # produced no verdict about upstream health. Release a reserved
+            # half-open probe so the breaker cannot wedge shut.
+            self._breaker.abandon_probe()
+            raise
 
+    async def _fetch_with_retries(
+        self,
+        spec: ProcedureSpec,
+        params: Mapping[str, object],
+        auth_headers: Mapping[str, str],
+        auth_class: str,
+        correlation_id: str | None,
+    ) -> UpstreamRead:
         started = self._clock()
         attempt = 0
         last_error: Exception | None = None
@@ -242,9 +264,11 @@ class WareraQueryClient:
         while True:
             attempt += 1
             try:
-                await self._limiter.acquire()
-                async with self._semaphore:
+                await self._acquire_slot()
+                try:
                     data = await self._attempt(spec, params, auth_headers, correlation_id, attempt)
+                finally:
+                    self._semaphore.release()
             except WareraError as error:
                 last_error = error
                 delay = self._retry.delay_for(attempt, error, random01=self._random01)
@@ -276,11 +300,30 @@ class WareraQueryClient:
         assert last_error is not None
         if isinstance(last_error, _AVAILABILITY_ERRORS):
             self._breaker.record_failure()
+        elif isinstance(last_error, WareraOverloaded):
+            # Shed locally: says nothing about upstream health.
+            self._breaker.abandon_probe()
         else:
             self._breaker.record_success()
         duration_ms = (self._clock() - started) * 1000.0
         self._observe(spec, auth_class, _error_label(last_error), duration_ms, attempt)
         raise last_error
+
+    async def _acquire_slot(self) -> None:
+        """Wait for the outbound rate limit and a concurrency slot, with a bounded queue.
+
+        Without a cap on waiters, a burst of tool calls would queue indefinitely
+        behind the shared limiter and starve every other caller. Beyond the cap,
+        reads are shed immediately with a retryable error.
+        """
+        if self._pending >= self._settings.max_pending_requests:
+            raise WareraOverloaded
+        self._pending += 1
+        try:
+            await self._limiter.acquire()
+            await self._semaphore.acquire()
+        finally:
+            self._pending -= 1
 
     async def _attempt(
         self,
@@ -291,20 +334,43 @@ class WareraQueryClient:
         attempt: int,
     ) -> object:
         payload = json.dumps(params, separators=(",", ":"), sort_keys=True, ensure_ascii=True)
+        limit = self._settings.max_response_bytes
         try:
-            response = await self._http.get(
+            async with self._http.stream(
+                "GET",
                 f"/trpc/{spec.name}",
                 params={"input": payload},
                 headers=dict(auth_headers),
-            )
+            ) as response:
+                status = response.status_code
+                headers = response.headers
+                # Statuses that never carry a body we use are classified before a
+                # single body byte is read.
+                self._raise_for_status_without_body(status, headers)
+                body = await self._read_limited(response, limit)
         except httpx.TimeoutException as exc:
             raise WareraTimeout("upstream request timed out") from exc
         except httpx.TransportError as exc:
             raise WareraConnectionError("upstream connection failed") from exc
-        return self._handle_response(response)
+        return self._handle_response(status, body)
 
-    def _handle_response(self, response: httpx.Response) -> object:
-        limit = self._settings.max_response_bytes
+    @staticmethod
+    def _raise_for_status_without_body(status: int, headers: Mapping[str, str]) -> None:
+        if status == 429:
+            raise WareraRateLimited(_retry_after_seconds(headers))
+        if status in (401, 403):
+            raise WareraAuthError(status)
+        if status >= 500:
+            raise WareraServerError(status, "upstream server error")
+
+    @staticmethod
+    async def _read_limited(response: httpx.Response, limit: int) -> bytes:
+        """Read the (decoded) body, aborting as soon as it exceeds *limit* bytes.
+
+        ``Content-Length`` is only a hint, and compressed bodies expand, so the cap
+        is enforced on the bytes actually received. The connection is closed by the
+        surrounding ``stream`` context when this raises.
+        """
         declared = response.headers.get("content-length")
         if declared is not None:
             try:
@@ -312,36 +378,40 @@ class WareraQueryClient:
                     raise WareraResponseTooLarge(limit)
             except ValueError:
                 pass
-        content = response.content
-        if len(content) > limit:
-            raise WareraResponseTooLarge(limit)
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in response.aiter_bytes():
+            total += len(chunk)
+            if total > limit:
+                raise WareraResponseTooLarge(limit)
+            chunks.append(chunk)
+        return b"".join(chunks)
 
-        status = response.status_code
-        if status == 429:
-            raise WareraRateLimited(_retry_after_seconds(response.headers))
-        if status in (401, 403):
-            raise WareraAuthError(status)
-        if status >= 500:
-            raise WareraServerError(status, "upstream server error")
+    @staticmethod
+    def _decode_json(body: bytes) -> object:
+        try:
+            return json.loads(body)
+        except (ValueError, RecursionError) as exc:
+            # ``ValueError`` covers invalid JSON and invalid UTF-8; deeply nested
+            # documents raise ``RecursionError``.
+            raise WareraSchemaError("upstream response was not valid JSON") from exc
+
+    def _handle_response(self, status: int, body: bytes) -> object:
         if not 200 <= status < 300:
             # Preserve the tRPC error code when the body carries one; otherwise
             # fall back to a status-only error. Success envelopes on an error
             # status are deliberately ignored.
             payload: object = None
             try:
-                payload = response.json()
-            except ValueError:
+                payload = json.loads(body)
+            except (ValueError, RecursionError):
                 payload = None
             api_error = extract_trpc_error(payload) if payload is not None else None
             if api_error is not None:
                 raise api_error
             raise WareraHTTPError(status, f"upstream request failed ({status})")
 
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            raise WareraSchemaError("upstream response was not valid JSON") from exc
-        return parse_trpc_envelope(payload)
+        return parse_trpc_envelope(self._decode_json(body))
 
     def _observe(
         self,

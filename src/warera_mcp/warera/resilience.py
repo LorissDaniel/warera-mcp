@@ -133,6 +133,15 @@ class CircuitBreaker:
         self._probe_in_flight = True
         return True
 
+    def abandon_probe(self) -> None:
+        """Release a reserved half-open probe that produced no verdict.
+
+        A probe can end without success or failure (the caller was cancelled, or
+        the request was shed locally). Without this, the reservation would never
+        be cleared and the breaker would refuse traffic forever.
+        """
+        self._probe_in_flight = False
+
     def record_success(self) -> None:
         self._failures = 0
         self._opened_at = None

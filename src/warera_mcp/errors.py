@@ -37,6 +37,7 @@ class ErrorCode(StrEnum):
     UPSTREAM_UNAVAILABLE = "UPSTREAM_UNAVAILABLE"
     UPSTREAM_SCHEMA_CHANGED = "UPSTREAM_SCHEMA_CHANGED"
     PARTIAL_RESULT = "PARTIAL_RESULT"
+    OUTPUT_TOO_LARGE = "OUTPUT_TOO_LARGE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
@@ -72,6 +73,7 @@ _DEFAULT_ACTIONS: dict[ErrorCode, ErrorAction] = {
     ErrorCode.UPSTREAM_UNAVAILABLE: ErrorAction.RETRY_LATER,
     ErrorCode.UPSTREAM_SCHEMA_CHANGED: ErrorAction.CONTACT_OPERATOR,
     ErrorCode.PARTIAL_RESULT: ErrorAction.NONE,
+    ErrorCode.OUTPUT_TOO_LARGE: ErrorAction.CORRECT_ARGUMENT,
     ErrorCode.INTERNAL_ERROR: ErrorAction.CONTACT_OPERATOR,
 }
 
@@ -244,6 +246,11 @@ def upstream_unavailable(message: str, operation: str) -> AppError:
 
 def upstream_schema_changed(message: str, operation: str, **details: Any) -> AppError:
     return _build(ErrorCode.UPSTREAM_SCHEMA_CHANGED, message, operation, details=details or None)
+
+
+def output_too_large(message: str, operation: str, **details: Any) -> AppError:
+    """The projected result exceeded the output budget; the caller should narrow it."""
+    return _build(ErrorCode.OUTPUT_TOO_LARGE, message, operation, details=details or None)
 
 
 def internal_error(message: str, operation: str, *, correlation_id: str | None = None) -> AppError:

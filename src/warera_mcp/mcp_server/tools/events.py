@@ -11,7 +11,12 @@ from pydantic import Field
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
-from warera_mcp.mcp_server.tools.base import READ_ONLY_ANNOTATIONS, MediumLimit, OpaqueCursor
+from warera_mcp.mcp_server.tools.base import (
+    READ_ONLY_ANNOTATIONS,
+    SAFE_TEXT_PATTERN,
+    MediumLimit,
+    OpaqueCursor,
+)
 
 SEARCH_EVENTS_DESCRIPTION = (
     "Retrieve a bounded page of recent world events, optionally filtered by country or event "
@@ -32,11 +37,21 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         country_id: Annotated[
             str | None,
-            Field(default=None, max_length=64, description="Keep events related to this country."),
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Keep events related to this country.",
+            ),
         ] = None,
         event_types: Annotated[
-            list[str] | None,
-            Field(default=None, description="Keep only these event types (case-insensitive)."),
+            list[Annotated[str, Field(min_length=1, max_length=40, pattern=SAFE_TEXT_PATTERN)]]
+            | None,
+            Field(
+                default=None,
+                max_length=10,
+                description="Keep only these event types (case-insensitive, at most 10).",
+            ),
         ] = None,
         limit: MediumLimit = 10,
         cursor: OpaqueCursor = None,

@@ -11,7 +11,7 @@ from pydantic import Field
 from warera_mcp.domain.enums import PlayerField
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
-from warera_mcp.mcp_server.responses import success_result
+from warera_mcp.mcp_server.responses import quoted, success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
@@ -44,7 +44,9 @@ def register(mcp: FastMCP) -> None:
         ] = None,
         fields: Annotated[
             list[PlayerField] | None,
-            Field(default=None, description="Field groups to include; omit for all."),
+            Field(
+                default=None, max_length=10, description="Field groups to include; omit for all."
+            ),
         ] = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
@@ -55,7 +57,7 @@ def register(mcp: FastMCP) -> None:
             correlation_id=call_id(ctx),
         )
         label = result.player.username or result.player.id
-        summary = f"Public profile for {label}"
+        summary = f"Public profile for {quoted(label)}"
         if result.player.level is not None:
             summary += f" (level {result.player.level})"
         return success_result(

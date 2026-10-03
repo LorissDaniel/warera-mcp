@@ -36,6 +36,7 @@ from warera_mcp.warera.errors import (
     WareraError,
     WareraHTTPError,
     WareraMissingCredential,
+    WareraOverloaded,
     WareraRateLimited,
     WareraResponseTooLarge,
     WareraSchemaError,
@@ -153,8 +154,25 @@ def map_upstream_error(
             ),
         )
 
+    if isinstance(error, WareraOverloaded):
+        return app_errors.rate_limited(
+            "the server is handling too many WarEra reads right now; retry shortly",
+            operation,
+            retry_after_seconds=1.0,
+        )
+
+    if isinstance(error, WareraAuthError) and not available:
+        # No credential was sent, so this is not "your credential was rejected":
+        # WarEra now refuses an operation we treat as public.
+        return app_errors.upstream_schema_changed(
+            "WarEra refused an anonymous request that this server treats as public",
+            operation,
+            reason="anonymous_access_refused",
+            procedure=procedure,
+        )
+
     if isinstance(error, WareraAuthError):
-        kind = next(iter(available), "UNKNOWN")
+        kind = next(iter(available))
         if error.status_code == 403:
             return app_errors.forbidden(
                 f"the supplied {kind} credential is not authorized for '{operation}'",

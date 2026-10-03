@@ -10,7 +10,7 @@ from pydantic import Field
 
 from warera_mcp.mcp_server.context import ToolContext, call_id, runtime_of
 from warera_mcp.mcp_server.errors import tool_errors
-from warera_mcp.mcp_server.responses import success_result
+from warera_mcp.mcp_server.responses import quoted, success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
@@ -22,6 +22,10 @@ GET_PLAYER_COMPANIES_DESCRIPTION = (
     "bonus. This answers ownership questions in one call instead of many company lookups. It is "
     "not a country-wide company directory."
 )
+
+#: Matches the default ``Settings.max_fanout``; a lower configured cap still clamps
+#: (with a warning), but the advertised range is reachable out of the box.
+MAX_COMPANIES_PER_CALL = 10
 
 GET_COMPANY_OVERVIEW_DESCRIPTION = (
     "Get one company's details: what it produces, where it sits, its workforce and its production "
@@ -41,7 +45,12 @@ def register(mcp: FastMCP) -> None:
         ctx: ToolContext,
         user_id: Annotated[
             str | None,
-            Field(default=None, max_length=64, description="WarEra user id (preferred)."),
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="WarEra user id (preferred).",
+            ),
         ] = None,
         username: Annotated[
             str | None,
@@ -53,8 +62,14 @@ def register(mcp: FastMCP) -> None:
             ),
         ] = None,
         limit: Annotated[
-            int, Field(ge=1, le=12, default=12, description="Maximum companies to return (1-12).")
-        ] = 12,
+            int,
+            Field(
+                ge=1,
+                le=MAX_COMPANIES_PER_CALL,
+                default=MAX_COMPANIES_PER_CALL,
+                description=f"Maximum companies to return (1-{MAX_COMPANIES_PER_CALL}).",
+            ),
+        ] = MAX_COMPANIES_PER_CALL,
         offset: Annotated[
             int, Field(ge=0, le=10_000, default=0, description="Local offset into the owned list.")
         ] = 0,
@@ -74,7 +89,7 @@ def register(mcp: FastMCP) -> None:
         returned = len(result.companies)
         summary = (
             f"{returned} of {result.total_count} companies for "
-            f"{result.player.username or result.player.id}"
+            f"{quoted(result.player.username or result.player.id)}"
         )
         return success_result(
             result,
@@ -103,7 +118,7 @@ def register(mcp: FastMCP) -> None:
             correlation_id=call_id(ctx),
         )
         name = result.company.name or result.company.id
-        summary = f"Company {name}"
+        summary = f"Company {quoted(name)}"
         if result.company.item_code:
             summary += f" produces {result.company.item_code}"
         return success_result(

@@ -13,6 +13,7 @@ from warera_mcp.mcp_server.errors import tool_errors
 from warera_mcp.mcp_server.responses import success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
+    SAFE_TEXT_PATTERN,
     OpaqueCursor,
     RequiredIdentifier,
     SmallLimit,
@@ -41,7 +42,13 @@ def register(mcp: FastMCP) -> None:
     async def search_battles(
         ctx: ToolContext,
         country_id: Annotated[
-            str | None, Field(default=None, max_length=64, description="Filter by country id.")
+            str | None,
+            Field(
+                default=None,
+                max_length=64,
+                pattern=SAFE_TEXT_PATTERN,
+                description="Filter by country id.",
+            ),
         ] = None,
         is_active: Annotated[
             bool | None, Field(default=None, description="Filter to active or finished battles.")

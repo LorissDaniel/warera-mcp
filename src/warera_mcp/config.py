@@ -18,6 +18,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 FIXED_UPSTREAM_HOST = "api2.warera.io"
 FIXED_UPSTREAM_URL = f"https://{FIXED_UPSTREAM_HOST}"
 
+#: Bind addresses treated as local-only.
+LOOPBACK_HOSTS: frozenset[str] = frozenset({"127.0.0.1", "localhost", "::1"})
+
 
 class Settings(BaseSettings):
     """Validated, immutable process settings.
@@ -74,10 +77,12 @@ class Settings(BaseSettings):
     cache_max_entries: int = Field(default=512, ge=1, le=100_000)
 
     # ----------------------------------------------------------------- tool caps
-    default_page_limit: int = Field(default=5, ge=1, le=20)
-    max_page_limit: int = Field(default=20, ge=1, le=50)
     max_fanout: int = Field(default=10, ge=1, le=50)
     max_output_bytes: int = Field(default=262_144, ge=4096, le=8_000_000)
+    tool_deadline_seconds: float = Field(default=12.0, gt=0, le=120)
+    """Hard wall-clock budget for one tool call, retries and fan-out included."""
+    max_pending_requests: int = Field(default=64, ge=1, le=10_000)
+    """Upstream reads allowed to wait on the shared limiter before new ones are shed."""
 
     # ------------------------------------------------------------------- server
     server_name: str = "warera-mcp"
@@ -98,6 +103,13 @@ class Settings(BaseSettings):
     client_rate_limit_per_minute: int = Field(default=120, ge=1, le=100_000)
     client_rate_limit_burst: int = Field(default=30, ge=1, le=10_000)
     trusted_hosts: tuple[str, ...] = ()
+    """Allowed ``Host`` header values; enables DNS-rebinding protection when set."""
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+    """Number of trusted reverse proxies in front of the server (0 = none).
+
+    With a value of N, the client address is the Nth entry from the right of
+    ``X-Forwarded-For``; the header is ignored entirely when this is 0.
+    """
     enable_cors: bool = False
     cors_allow_origins: tuple[str, ...] = ()
 
@@ -130,6 +142,26 @@ class Settings(BaseSettings):
         return self
 
     @property
+    def binds_loopback_only(self) -> bool:
+        return self.host in LOOPBACK_HOSTS
+
+    def exposure_warnings(self) -> tuple[str, ...]:
+        """Human-readable notices about risky remote-deployment combinations."""
+        notices: list[str] = []
+        if not self.binds_loopback_only and not self.require_client_auth:
+            notices.append(
+                f"listening on {self.host} without client authentication: every caller that "
+                "can reach this port may use the server. Enable require_client_auth or "
+                "put an authenticating gateway in front of it."
+            )
+        if not self.binds_loopback_only and not self.trusted_hosts:
+            notices.append(
+                "no trusted_hosts configured: Host/Origin validation (DNS-rebinding "
+                "protection) is disabled for this non-loopback bind."
+            )
+        return tuple(notices)
+
+    @property
     def upstream_host(self) -> str:
         return self.warera_base_url.host or FIXED_UPSTREAM_HOST
 
@@ -139,4 +171,10 @@ def load_settings(**overrides: object) -> Settings:
     return Settings(**overrides)  # type: ignore[arg-type]
 
 
-__all__ = ["FIXED_UPSTREAM_HOST", "FIXED_UPSTREAM_URL", "Settings", "load_settings"]
+__all__ = [
+    "FIXED_UPSTREAM_HOST",
+    "FIXED_UPSTREAM_URL",
+    "LOOPBACK_HOSTS",
+    "Settings",
+    "load_settings",
+]
