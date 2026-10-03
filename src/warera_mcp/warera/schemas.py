@@ -189,12 +189,6 @@ class Record:
     def opt_str(self, key: str) -> str | None:
         return coerce_str(self.data.get(key))
 
-    def str(self, key: str) -> str | None:
-        value = coerce_str(self.data.get(key))
-        if value is None and self.data.get(key) is not None:
-            self._problem(key, "expected non-empty string")
-        return value
-
     def ident(self, key: str) -> str | None:
         value = extract_ident(self.data.get(key))
         if value is None and self.data.get(key) is not None:

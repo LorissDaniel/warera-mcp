@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------ upstream
-    warera_base_url: AnyHttpUrl = FIXED_UPSTREAM_URL
+    warera_base_url: AnyHttpUrl = AnyHttpUrl(FIXED_UPSTREAM_URL)
     allow_custom_upstream: bool = False
     """Explicit opt-in required to point the client at a non-WarEra host.
 

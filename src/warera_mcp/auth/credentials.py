@@ -156,7 +156,7 @@ def parse_player_context(payload: Any) -> PlayerRequestContext:
             "player_context has unsupported fields: " + ", ".join(sorted(str(k) for k in unknown))
         )
 
-    cleaned: dict[str, str] = {}
+    cleaned: dict[str, Any] = {}
     for key in PLAYER_CONTEXT_FIELDS:
         value = payload.get(key)
         if value is None:
@@ -166,7 +166,7 @@ def parse_player_context(payload: Any) -> PlayerRequestContext:
         cleaned[key] = value
 
     try:
-        return PlayerRequestContext(**cleaned)
+        return PlayerRequestContext.model_validate(cleaned)
     except ValidationError as exc:
         raise CredentialError(_safe_validation_message(exc)) from None
 

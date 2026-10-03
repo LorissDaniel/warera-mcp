@@ -8,7 +8,7 @@ query strings and raw inputs are never attached.
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -48,7 +48,7 @@ class Tracer(Protocol):
 
     def start_span(
         self, name: str, *, attributes: Mapping[str, object] | None = None
-    ) -> Iterator[Span]: ...
+    ) -> AbstractContextManager[Span]: ...
 
 
 class NullTracer:

@@ -179,11 +179,11 @@ class RetryPolicy:
         return None
 
     def _backoff(self, attempt: int, random01: Random01) -> float:
-        base = min(
-            self.base_backoff_seconds * (2 ** (attempt - 1)),
+        base: float = min(
+            self.base_backoff_seconds * float(2 ** (attempt - 1)),
             self.max_backoff_seconds,
         )
-        jittered = base * random01()
+        jittered: float = base * random01()
         return max(0.01, jittered)
 
 

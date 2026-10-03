@@ -1,0 +1,68 @@
+"""Semantic application services.
+
+The MCP layer depends only on this package. Each service is constructed from a
+:class:`~warera_mcp.application.common.ServiceRuntime` and contains no transport
+or protocol details.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from warera_mcp.application.battles import BattleService
+from warera_mcp.application.catalog import ItemCatalog
+from warera_mcp.application.common import ServiceRuntime, UpstreamCaller
+from warera_mcp.application.companies import CompanyService
+from warera_mcp.application.events import EventService
+from warera_mcp.application.market import MarketService
+from warera_mcp.application.players import PlayerResolver, PlayerService
+from warera_mcp.application.rankings import BattleRankingService
+from warera_mcp.application.world import WorldService
+
+
+@dataclass(slots=True)
+class Services:
+    """The complete set of semantic services exposed through MCP tools."""
+
+    players: PlayerService
+    companies: CompanyService
+    world: WorldService
+    market: MarketService
+    battles: BattleService
+    events: EventService
+    rankings: BattleRankingService
+    catalog: ItemCatalog
+
+
+def build_services(runtime: ServiceRuntime) -> Services:
+    """Wire the service graph from a single runtime."""
+    caller = UpstreamCaller(runtime)
+    catalog = ItemCatalog(caller)
+    resolver = PlayerResolver(caller, runtime)
+    return Services(
+        players=PlayerService(resolver),
+        companies=CompanyService(caller, runtime, resolver),
+        world=WorldService(caller, runtime),
+        market=MarketService(caller, runtime, catalog),
+        battles=BattleService(caller, runtime),
+        events=EventService(caller, runtime),
+        rankings=BattleRankingService(caller, runtime),
+        catalog=catalog,
+    )
+
+
+__all__ = [
+    "BattleRankingService",
+    "BattleService",
+    "CompanyService",
+    "EventService",
+    "ItemCatalog",
+    "MarketService",
+    "PlayerResolver",
+    "PlayerService",
+    "ServiceRuntime",
+    "Services",
+    "UpstreamCaller",
+    "WorldService",
+    "build_services",
+]

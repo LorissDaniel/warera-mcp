@@ -83,8 +83,6 @@ def _retry_after_seconds(headers: Mapping[str, str]) -> float | None:
         parsed = parsedate_to_datetime(raw)
     except (TypeError, ValueError):
         return None
-    if parsed is None:
-        return None
     return max(0.0, (parsed - datetime.now(UTC)).total_seconds())
 
 
