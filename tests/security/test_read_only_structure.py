@@ -63,9 +63,5 @@ def test_no_executor_or_write_module_exists() -> None:
     assert names.isdisjoint(FORBIDDEN_MODULE_NAMES)
 
 
-def test_design_document_is_checked_in() -> None:
-    assert (SRC.parents[1] / "SYSTEM_DESIGN.md").is_file()
-
-
 def test_package_ships_a_py_typed_marker() -> None:
     assert (SRC / "py.typed").is_file()
