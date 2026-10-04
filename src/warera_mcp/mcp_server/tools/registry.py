@@ -16,6 +16,7 @@ from warera_mcp.mcp_server.tools import (
     battles,
     companies,
     events,
+    game_configuration,
     market,
     players,
     rankings,
@@ -40,6 +41,10 @@ APPROVED_TOOL_NAMES: frozenset[str] = frozenset(
         "get_battle",
         "get_battle_ranking",
         "search_events",
+        "get_game_rules",
+        "get_skill_progression",
+        "get_item_details",
+        "get_game_schedule",
     }
 )
 
@@ -51,6 +56,7 @@ _TOOL_MODULES: tuple[ModuleType, ...] = (
     battles,
     rankings,
     events,
+    game_configuration,
 )
 
 

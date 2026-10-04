@@ -14,6 +14,7 @@ from warera_mcp.application.catalog import ItemCatalog
 from warera_mcp.application.common import ServiceRuntime, UpstreamCaller
 from warera_mcp.application.companies import CompanyService
 from warera_mcp.application.events import EventService
+from warera_mcp.application.game_configuration import GameConfigurationService
 from warera_mcp.application.market import MarketService
 from warera_mcp.application.players import PlayerResolver, PlayerService
 from warera_mcp.application.rankings import BattleRankingService
@@ -32,22 +33,25 @@ class Services:
     events: EventService
     rankings: BattleRankingService
     catalog: ItemCatalog
+    game_configuration: GameConfigurationService
 
 
 def build_services(runtime: ServiceRuntime) -> Services:
     """Wire the service graph from a single runtime."""
     caller = UpstreamCaller(runtime)
     catalog = ItemCatalog(caller)
+    game_configuration = GameConfigurationService(caller)
     resolver = PlayerResolver(caller, runtime)
     return Services(
         players=PlayerService(resolver),
-        companies=CompanyService(caller, runtime, resolver),
+        companies=CompanyService(caller, runtime, resolver, game_configuration),
         world=WorldService(caller, runtime),
         market=MarketService(caller, runtime, catalog),
         battles=BattleService(caller, runtime),
         events=EventService(caller, runtime),
         rankings=BattleRankingService(caller, runtime),
         catalog=catalog,
+        game_configuration=game_configuration,
     )
 
 

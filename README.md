@@ -40,6 +40,7 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 | Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
 | Battles | `search_battles`, `get_battle`, `get_battle_ranking` |
 | Events | `search_events` |
+| Official configuration | `get_game_rules`, `get_skill_progression`, `get_item_details`, `get_game_schedule` |
 
 Every tool is marked read-only. There is deliberately **no** generic "call any endpoint" tool.
 
@@ -80,8 +81,9 @@ If you expose it beyond your own machine, turn on client authentication and set 
 
 - **Read-only by design.** It can only *read* a short, reviewed list of public WarEra queries.
   Nothing in it can change anything in the game.
-- **Meaningful tools, not raw data.** Each tool answers a question ("who owns what?") by combining
-  a few upstream calls and returning a tidy, normalized result.
+- **Meaningful tools, not raw data.** Each tool answers a cohesive question ("who owns what?") by
+  combining a few upstream calls. For questions that span domains, the assistant can combine
+  several tools using stable IDs or item codes and retain each result's snapshot time.
 - **Bounded.** Results, number of upstream calls, response size and time per request are all capped,
   so one question can't run away.
 - **Stateless and lightweight.** No database and no accounts. Only a small in-memory cache of
@@ -92,6 +94,7 @@ If you expose it beyond your own machine, turn on client authentication and set 
 ## Privacy & security
 
 - The tools read WarEra data and current public operations can be called anonymously.
+- Configuration tools always read anonymously and do not accept `player_context`.
 - If supplied, `player_context` carries the caller's own request-scoped `api_key` or `jwt`.
 - The project has no default or global WarEra credential.
 - Submitted credentials are not logged, cached or persisted by the server, but they are sent in the MCP tool request and may be visible in the LLM/client conversation history.
@@ -103,6 +106,23 @@ If you expose it beyond your own machine, turn on client authentication and set 
 
 Settings are read from `WARERA_MCP_*` environment variables. Copy `.env.example` for the full,
 commented list. The WarEra host itself is fixed and cannot be redirected.
+
+Official configuration and schedule facts come from WarEra's `gameConfig.getGameConfig` and
+`gameConfig.getDates` queries. Configuration is cached in memory for five minutes and schedule
+data for 30 seconds. Results include the server observation time and a local SHA-256 content
+fingerprint; WarEra does not supply a verified configuration revision through these responses.
+The rule tool exposes reviewed player, combat, company, worker, military unit, politics, world and
+mission facts, per-level upgrade costs and stats, and item/skill discovery. It omits ambiguous fields
+and does not provide every game formula. Item details include validated recipes, selected flat
+effects and configured dynamic stat ranges. The local `get_item_catalog` remains a separate
+verified catalog, and its items can differ from configuration items or market-eligible items.
+Company overviews use an explicitly configured recipe catalog when one provides a recipe, then fall
+back to validated recipes from official game configuration. Player profiles include a current skill
+summary only when the public profile returns it; progression tables describe configured levels and
+do not provide private skill currency.
+Derived calculations should state assumptions and missing inputs. No community source supplies
+configuration facts. Contract fixtures contain the complete official config and schedule payloads
+captured by anonymous GET on 2026-10-04; fixture values are not used as production defaults.
 
 ## Development
 

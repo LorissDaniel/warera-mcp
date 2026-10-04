@@ -32,6 +32,7 @@ class Domain(StrEnum):
     WORK = "work"
     BATTLES = "battles"
     EVENTS = "events"
+    CONFIGURATION = "configuration"
 
 
 class ProcedureParamError(ValueError):
@@ -268,6 +269,10 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
         ttl=30,
         evidence="[L,D,live] anonymous {items,nextCursor}; raw data treated as untrusted",
     ),
+    _p("gameConfig.getGameConfig", Domain.CONFIGURATION, ttl=300,
+       evidence="[anonymous GET, verified] official game configuration snapshot"),
+    _p("gameConfig.getDates", Domain.CONFIGURATION, ttl=30,
+       evidence="[anonymous GET, verified] official UTC game schedule"),
 )
 
 PROCEDURES: Final[Mapping[str, ProcedureSpec]] = MappingProxyType(

@@ -31,8 +31,9 @@ MAX_COMPANIES_PER_CALL = 10
 
 GET_COMPANY_OVERVIEW_DESCRIPTION = (
     "Get one company's details: what it produces, where it sits, its workforce and its production "
-    "bonus (normalized to a fraction). Recipe inputs are only reported when a validated local "
-    "catalog is available, and they describe configured requirements, not current stock."
+    "bonus (normalized to a fraction). Includes a validated recipe from an explicit catalog or "
+    "official game configuration when available; recipe inputs describe configured requirements, "
+    "not current stock."
 )
 
 

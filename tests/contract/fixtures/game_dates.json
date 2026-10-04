@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "provenance": "live-capture",
+  "note": "Captured with anonymous official GET on 2026-10-04; fixture values are not production defaults.",
+  "entries": [
+    {
+      "procedure": "gameConfig.getDates",
+      "auth": "PUBLIC",
+      "input": {},
+      "data": {
+        "nextDayAt": "2026-10-05T00:00:00.000Z",
+        "nextRegenAt": "2026-10-04T11:00:00.000Z",
+        "previousDayAt": "2026-10-04T00:00:00.000Z",
+        "nextCongressElectionsAt": "2026-10-05T00:00:00.000Z",
+        "nextPresidentialElectionsAt": "2026-11-01T00:00:00.000Z",
+        "nextMonthAt": "2026-11-01T00:00:00.000Z",
+        "dailyMissionRegenAt": "2026-10-05T00:00:00.000Z",
+        "weeklyMissionRegenAt": "2026-10-05T00:00:00.000Z",
+        "monthlyMissionRegenAt": "2026-11-01T00:00:00.000Z"
+      }
+    }
+  ]
+}

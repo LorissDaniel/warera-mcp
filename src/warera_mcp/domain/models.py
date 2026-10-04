@@ -47,6 +47,49 @@ class ToolResult(DomainModel):
         return self.model_dump(mode="json", exclude_none=True)
 
 
+class ConfigurationProvenance(DomainModel):
+    source: str = "official_game_configuration"
+    source_procedure: str
+    source_url: str
+    configuration_version: str
+    observed_at: UtcDateTime
+    freshness_seconds: int
+
+
+class GameRulesResult(ToolResult):
+    provenance: ConfigurationProvenance
+    topic: str
+    records: list[dict[str, Any]]
+    offset: int
+    limit: int
+    total_count: int
+    has_more: bool
+    partial: bool = False
+
+
+class SkillProgressionResult(ToolResult):
+    provenance: ConfigurationProvenance
+    skill_code: str
+    levels: list[dict[str, Any]]
+    offset: int
+    limit: int
+    total_count: int
+    has_more: bool
+    partial: bool = False
+
+
+class ItemDetailsResult(ToolResult):
+    provenance: ConfigurationProvenance
+    item: dict[str, Any]
+    partial: bool = False
+
+
+class GameScheduleResult(ToolResult):
+    provenance: ConfigurationProvenance
+    schedule: dict[str, UtcDateTime]
+    partial: bool = False
+
+
 class PageInfo(DomainModel):
     """Opaque upstream cursor plus a best-effort continuation hint."""
 
@@ -120,12 +163,14 @@ class RecipeInput(DomainModel):
 
 
 class Recipe(DomainModel):
-    """Locally sourced recipe facts, explicitly versioned."""
+    """Recipe facts from an explicit catalog or official configuration snapshot."""
 
     pp_per_unit: float | None = None
     inputs: list[RecipeInput] = Field(default_factory=list)
     source: str = "local_catalog"
     version: str | None = None
+    observed_at: UtcDateTime | None = None
+    source_procedure: str | None = None
 
 
 class CompanyDetail(DomainModel):
@@ -150,6 +195,7 @@ class GetCompanyOverviewResult(ToolResult):
     production_bonus: ProductionBonus | None = None
     recipe: Recipe | None = None
     region: RegionSummary | None = None
+    partial: bool = False
 
 
 # ----------------------------------------------------------------------------- world

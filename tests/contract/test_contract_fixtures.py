@@ -85,6 +85,8 @@ NORMALIZERS: dict[str, Callable[[Any], Any]] = {
         normalize_battle_ranking_entry(item, entity_type="user") for item in data["items"]
     ],
     "event.getEventsPaginated": lambda data: [normalize_event(item) for item in data["items"]],
+    "gameConfig.getGameConfig": lambda data: data,
+    "gameConfig.getDates": lambda data: data,
 }
 
 

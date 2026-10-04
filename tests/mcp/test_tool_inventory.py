@@ -93,6 +93,23 @@ def test_server_instructions_carry_the_credential_warning() -> None:
     assert CLEARTEXT_CREDENTIAL_WARNING in SERVER_INSTRUCTIONS
     assert "READ-ONLY" in SERVER_INSTRUCTIONS
     assert "untrusted" in SERVER_INSTRUCTIONS
+    assert "combine" in SERVER_INSTRUCTIONS
+    assert "companies" in SERVER_INSTRUCTIONS and "market books" in SERVER_INSTRUCTIONS
+    assert "best ask" in SERVER_INSTRUCTIONS and "best bid" in SERVER_INSTRUCTIONS
+    assert "opportunity cost" in SERVER_INSTRUCTIONS
+    assert "available" in SERVER_INSTRUCTIONS and "stock" in SERVER_INSTRUCTIONS
+    assert "call `get_item_details`" in SERVER_INSTRUCTIONS
+    assert "do not infer ingredients" in SERVER_INSTRUCTIONS
+
+
+def test_descriptions_explain_recipe_fallback_and_available_player_skills(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    tools = {tool.name: tool for tool in list_tools(settings, stub)}
+    company_description = tools["get_company_overview"].description or ""
+    player_description = tools["get_player"].description or ""
+    assert "official game configuration" in company_description
+    assert "current skill summary" in player_description
 
 
 def test_registry_refuses_unexpected_tool_registrations() -> None:

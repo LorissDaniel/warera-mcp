@@ -24,6 +24,7 @@ def seed_public_routes(stub: UpstreamStub) -> None:
             "leveling": {"level": 12},
             "country": "c1",
             "region": "r1",
+            "skills": {"production": 3.5, "management": 2},
         },
     )
     stub.route("search.searchUsers", ["u1"])
@@ -167,6 +168,10 @@ def test_get_player_by_id(settings: Settings, stub: UpstreamStub) -> None:
         result = await session.call_tool("get_player", {"user_id": "u1"})
         assert result.isError is False
         assert result.structuredContent["player"]["username"] == "Kiro"
+        assert result.structuredContent["player"]["skills"] == {
+            "production": 3.5,
+            "management": 2.0,
+        }
         assert result.structuredContent["resolved_by"] == "user_id"
         assert result.structuredContent["observed_at"].endswith("Z")
 
@@ -614,6 +619,102 @@ def test_cursor_is_forwarded_to_the_upstream(settings: Settings, stub: UpstreamS
     assert stub.inputs("event.getEventsPaginated") == [{"limit": 3, "cursor": "opaque-cursor"}]
 
 
+def test_configuration_tools_are_anonymous_and_share_cached_snapshot(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    stub.route(
+        "gameConfig.getGameConfig",
+        {
+            "items": {
+                "bread": {
+                    "type": "product",
+                    "productionPoints": 10,
+                    "productionNeeds": {"grain": 10},
+                    "flatStats": {"healthRegenPercent": 10},
+                },
+                "grain": {},
+            },
+            "skills": {
+                "production": {
+                    "levels": {
+                        "0": {"value": 10, "totalCost": 0, "isABar": True},
+                        "1": {"value": 13, "cost": 1, "totalCost": 1},
+                        "10": {"value": 40, "cost": 10, "totalCost": 55},
+                    }
+                }
+            },
+            "battle": {"healthCost": 10},
+            "upgradesConfig": {
+                "headquarters": {
+                    "levels": {
+                        "1": {
+                            "level": 1,
+                            "steelCost": 100,
+                            "maintenanceCost": 1,
+                            "stats": {"attackBonus": 5},
+                        }
+                    }
+                }
+            },
+        },
+    )
+
+    async def scenario(session: Any) -> None:
+        item = await session.call_tool("get_item_details", {"item_code": "bread"})
+        rules = await session.call_tool("get_game_rules", {"topic": "combat"})
+        skills = await session.call_tool(
+            "get_skill_progression", {"skill_code": "production", "limit": 50}
+        )
+        upgrades = await session.call_tool("get_game_rules", {"topic": "upgrades"})
+        assert item.isError is False
+        assert rules.isError is False
+        assert skills.isError is False
+        assert upgrades.isError is False
+        assert rules.structuredContent["records"][0]["id"] == "combat.health_cost"
+        levels = skills.structuredContent["levels"]
+        assert [level["level"] for level in levels] == [0, 1, 10]
+        assert levels[0]["total_cost"] == 0
+        assert "cost" not in levels[0]
+        assert item.structuredContent["item"]["effects"]["health_regen_fraction"] == 0.1
+        assert upgrades.structuredContent["records"][0]["steel_cost"] == 100
+
+    run_mcp(settings, stub, scenario)
+    assert len(stub.calls("gameConfig.getGameConfig")) == 1
+    assert stub.methods == {"GET"}
+    headers = stub.headers_for("gameConfig.getGameConfig")[0]
+    assert "api-key" not in headers
+    assert "authorization" not in headers
+
+
+def test_company_overview_enriches_with_anonymous_official_recipe(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    stub.route("company.getById", {"_id": "co-1", "itemCode": "bread"})
+    stub.route("company.getProductionBonus", {"total": 0})
+    stub.route(
+        "gameConfig.getGameConfig",
+        {
+            "items": {
+                "bread": {"productionPoints": 10, "productionNeeds": {"grain": 10}},
+                "grain": {},
+            }
+        },
+    )
+
+    async def scenario(session: Any) -> None:
+        result = await session.call_tool("get_company_overview", {"company_id": "co-1"})
+        assert result.isError is False
+        assert result.structuredContent["recipe"]["source"] == "official_game_configuration"
+        assert result.structuredContent["recipe"]["inputs"] == [
+            {"item_code": "grain", "quantity": 10}
+        ]
+
+    run_mcp(settings, stub, scenario)
+    headers = stub.headers_for("gameConfig.getGameConfig")[0]
+    assert "api-key" not in headers
+    assert "authorization" not in headers
+
+
 def test_every_v1_tool_accepts_optional_request_credentials(
     settings: Settings, stub: UpstreamStub
 ) -> None:
@@ -622,6 +723,14 @@ def test_every_v1_tool_accepts_optional_request_credentials(
     async def scenario(session: Any) -> None:
         tools = await session.list_tools()
         for tool in tools.tools:
+            if tool.name in {
+                "get_game_rules",
+                "get_skill_progression",
+                "get_item_details",
+                "get_game_schedule",
+            }:
+                assert "player_context" not in tool.inputSchema.get("properties", {}), tool.name
+                continue
             assert "player_context" in tool.inputSchema.get("properties", {}), tool.name
             assert "player_context" not in tool.inputSchema.get("required", []), tool.name
 

@@ -69,6 +69,8 @@ EXPECTED_READ_ONLY_PROCEDURES = frozenset(
         "battle.getLiveBattleData",
         "battleRanking.getRanking",
         "event.getEventsPaginated",
+        "gameConfig.getGameConfig",
+        "gameConfig.getDates",
     }
 )
 
@@ -106,6 +108,15 @@ def test_only_public_procedures_are_cacheable() -> None:
         if spec.cacheable:
             assert spec.is_public, f"{spec.name} is not public but claims to be cacheable"
             assert spec.ttl_seconds and spec.ttl_seconds > 0
+
+
+def test_configuration_procedures_are_parameterless_public_get_cache_entries() -> None:
+    config = get_procedure("gameConfig.getGameConfig")
+    dates = get_procedure("gameConfig.getDates")
+    assert config.is_public and config.accepted_params == frozenset() and config.ttl_seconds == 300
+    assert dates.is_public and dates.accepted_params == frozenset() and dates.ttl_seconds == 30
+    with pytest.raises(ProcedureParamError):
+        config.validate_params({"skill": "production"})
 
 
 def test_recommended_region_operation_is_any_of_key_or_jwt() -> None:

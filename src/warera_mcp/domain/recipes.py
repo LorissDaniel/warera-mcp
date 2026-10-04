@@ -1,10 +1,9 @@
-"""Local production-recipe catalog seam.
+"""Explicit production-recipe catalog overrides.
 
-Recipes are *not* available from any verified WarEra read operation. Rather than
-inventing recipe facts, the project exposes a small catalog interface with a
-null default: ``get_company_overview`` simply omits the recipe section unless a
-validated catalog is supplied. This keeps the extension point without shipping
-unverified game data.
+Company overview checks this synchronous catalog first, then can fall back to
+the asynchronous official configuration service. A null catalog therefore
+does not suppress recipes available in WarEra's official configuration. Static
+catalogs remain useful for tests and explicit caller-provided overrides.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from warera_mcp.domain.models import Recipe, RecipeInput
 
 @runtime_checkable
 class RecipeCatalog(Protocol):
-    """Looks up locally maintained recipe facts by produced item code."""
+    """Looks up explicitly supplied recipe facts by produced item code."""
 
     @property
     def version(self) -> str | None: ...

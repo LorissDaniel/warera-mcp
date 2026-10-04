@@ -18,6 +18,7 @@ from warera_mcp.application.common import (
     bounded_try_reads,
     composite_observed_at,
 )
+from warera_mcp.application.game_configuration import GameConfigurationService
 from warera_mcp.application.players import PlayerResolver
 from warera_mcp.auth.credentials import PlayerRequestContext
 from warera_mcp.domain.models import (
@@ -66,10 +67,12 @@ class CompanyService:
         caller: UpstreamCaller,
         runtime: ServiceRuntime,
         players: PlayerResolver,
+        game_configuration: GameConfigurationService | None = None,
     ) -> None:
         self._caller = caller
         self._runtime = runtime
         self._players = players
+        self._game_configuration = game_configuration
 
     async def get_player_companies(
         self,
@@ -239,6 +242,17 @@ class CompanyService:
         recipe = None
         if detail.item_code is not None:
             recipe = self._runtime.recipes.lookup(detail.item_code)
+            if recipe is None and self._game_configuration is not None:
+                try:
+                    recipe, recipe_read = await self._game_configuration.get_recipe(
+                        detail.item_code, correlation_id
+                    )
+                    if recipe is not None:
+                        reads.append(recipe_read)
+                    elif "official recipe was unavailable" not in warnings:
+                        warnings.append("official recipe was unavailable")
+                except app_errors.AppError:
+                    warnings.append("official recipe enrichment was unavailable")
 
         region: RegionSummary | None = None
         if include_region_context and detail.region_id is not None:
@@ -262,6 +276,7 @@ class CompanyService:
             production_bonus=production_bonus,
             recipe=recipe,
             region=region,
+            partial=any("recipe" in warning for warning in warnings),
         )
 
 

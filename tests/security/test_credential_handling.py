@@ -246,8 +246,22 @@ def test_v1_tools_accept_optional_request_credentials(
     async def scenario(session: Any) -> None:
         tools = await session.list_tools()
         assert all(
-            "player_context" in tool.inputSchema.get("properties", {})
-            and "player_context" not in tool.inputSchema.get("required", [])
+            (
+                (
+                    tool.name
+                    in {
+                        "get_game_rules",
+                        "get_skill_progression",
+                        "get_item_details",
+                        "get_game_schedule",
+                    }
+                    and "player_context" not in tool.inputSchema.get("properties", {})
+                )
+                or (
+                    "player_context" in tool.inputSchema.get("properties", {})
+                    and "player_context" not in tool.inputSchema.get("required", [])
+                )
+            )
             for tool in tools.tools
         )
         result = await session.call_tool("get_market_price", {"item_code": "iron"})

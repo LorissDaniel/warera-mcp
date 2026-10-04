@@ -191,7 +191,13 @@ def run_mcp(
             **kwargs: Any,
         ) -> Any:
             payload = dict(arguments or {})
-            if name != "probe_secret":
+            if name not in {
+                "probe_secret",
+                "get_game_rules",
+                "get_skill_progression",
+                "get_item_details",
+                "get_game_schedule",
+            }:
                 payload.setdefault("player_context", {"api_key": "wae_test_key"})
             return await self._inner.call_tool(name, payload, **kwargs)
 

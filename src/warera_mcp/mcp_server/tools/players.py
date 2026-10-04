@@ -21,9 +21,10 @@ from warera_mcp.mcp_server.tools.base import (
 )
 
 GET_PLAYER_DESCRIPTION = (
-    "Get a player's public profile and selected public stats. Use the WarEra user ID when "
-    "available; username resolution requires an exact, unambiguous match and otherwise asks you "
-    "to disambiguate. Does not return private inventory, balance, or session-only data."
+    "Get a player's public profile and selected public stats, including a current skill summary "
+    "when the public profile provides it. Use the WarEra user ID when available; username "
+    "resolution requires an exact, unambiguous match and otherwise asks you to disambiguate. "
+    "Does not return private inventory, balance, or session-only data."
 )
 
 
