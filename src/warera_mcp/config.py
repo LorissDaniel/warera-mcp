@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     max_concurrent_requests: int = Field(default=8, ge=1, le=128)
     max_response_bytes: int = Field(default=2_000_000, ge=1024, le=64_000_000)
 
+    # ---------------------------------------------------------------- batching
+    batching_enabled: bool = True
+    batch_window_seconds: float = Field(default=0.3, ge=0, le=0.4)
+    batch_max_size: int = Field(default=20, ge=1, le=50)
+    batch_max_url_bytes: int = Field(default=8000, ge=1024, le=64_000)
+
     # ------------------------------------------------------------------ retries
     max_retries: int = Field(default=2, ge=0, le=5)
     retry_base_backoff_seconds: float = Field(default=0.2, ge=0, le=5)

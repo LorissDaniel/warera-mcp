@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -47,6 +48,15 @@ def test_unique_match_with_unchecked_candidates_carries_a_warning(
         procedure = request.url.path.rsplit("/", 1)[-1]
         if procedure == "search.searchUsers":
             return httpx.Response(200, json={"result": {"data": ["u1", "u2"]}})
+        if request.url.params.get("batch") == "1":
+            indexed = json.loads(request.url.params["input"])
+            items = [
+                {"error": {"json": {"data": {"code": "INTERNAL_SERVER_ERROR", "httpStatus": 503}}}}
+                if params["userId"] == "u2"
+                else {"result": {"data": profile(1, "Kiro")}}
+                for params in indexed.values()
+            ]
+            return httpx.Response(207, json=items)
         if '"u2"' in str(request.url.params.get("input")):
             return httpx.Response(503, json={})
         return httpx.Response(200, json={"result": {"data": profile(1, "Kiro")}})

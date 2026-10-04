@@ -104,6 +104,7 @@ async def test_cancelled_probe_does_not_wedge_the_client_breaker() -> None:
         max_retries=0,
         circuit_failure_threshold=1,
         circuit_cooldown_seconds=0,
+        batch_window_seconds=0,
         outbound_rate_per_second=1000,
         outbound_rate_burst=1000,
     )

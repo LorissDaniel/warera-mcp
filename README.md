@@ -104,25 +104,33 @@ If you expose it beyond your own machine, turn on client authentication and set 
 
 ## Configuration
 
-Settings are read from `WARERA_MCP_*` environment variables. Copy `.env.example` for the full,
-commented list. The WarEra host itself is fixed and cannot be redirected.
+Settings are read from `WARERA_MCP_*` environment variables. `.env.example` documents
+commonly used settings; the complete list and defaults are in
+[`src/warera_mcp/config.py`](src/warera_mcp/config.py). The server does not automatically
+load a `.env` file, so pass these variables through your shell, MCP client configuration,
+or deployment environment. Command-line options can override the bind host, port and log level.
 
-Official configuration and schedule facts come from WarEra's `gameConfig.getGameConfig` and
-`gameConfig.getDates` queries. Configuration is cached in memory for five minutes and schedule
-data for 30 seconds. Results include the server observation time and a local SHA-256 content
-fingerprint; WarEra does not supply a verified configuration revision through these responses.
-The rule tool exposes reviewed player, combat, company, worker, military unit, politics, world and
-mission facts, per-level upgrade costs and stats, and item/skill discovery. It omits ambiguous fields
-and does not provide every game formula. Item details include validated recipes, selected flat
-effects and configured dynamic stat ranges. The local `get_item_catalog` remains a separate
-verified catalog, and its items can differ from configuration items or market-eligible items.
-Company overviews use an explicitly configured recipe catalog when one provides a recipe, then fall
-back to validated recipes from official game configuration. Player profiles include a current skill
-summary only when the public profile returns it; progression tables describe configured levels and
-do not provide private skill currency.
-Derived calculations should state assumptions and missing inputs. No community source supplies
-configuration facts. Contract fixtures contain the complete official config and schedule payloads
-captured by anonymous GET on 2026-10-04; fixture values are not used as production defaults.
+The upstream defaults to `https://api2.warera.io` and rejects another host unless
+`WARERA_MCP_ALLOW_CUSTOM_UPSTREAM=true` is explicitly enabled for local mocks. HTTP
+redirects are never followed.
+
+Game rules, skill progression, item details and schedule data are fetched from WarEra's
+`gameConfig.getGameConfig` and `gameConfig.getDates` queries. When public caching is
+enabled, their cache lifetimes are five minutes and 30 seconds respectively. Set
+`WARERA_MCP_CACHE_ENABLED=false` to disable caching; API batching works independently.
+Results include the time the server fetched the data and a SHA-256 fingerprint computed
+locally from the returned content. The fingerprint is not an official game revision.
+
+These tools expose selected fields from the API responses, including production recipes,
+skill levels, upgrade costs and schedule timestamps. They do not provide every game
+formula. `get_item_catalog` returns a separate built-in list of item codes; configuration
+items and the live market price list can differ from that list. Player skill summaries
+are included only when the public profile supplies them.
+
+Company overviews fetch recipes from game configuration when available. Python integrations
+can supply a recipe catalog through `ServiceRuntime` to override that lookup; the standard
+CLI uses no local recipe overrides. Contract fixtures are used only by tests and are not
+production defaults.
 
 ## Development
 
@@ -149,3 +157,38 @@ sharing what they've learned about the game.
 ## License
 
 Released under the [MIT License](LICENSE). Provided "as is", without warranty of any kind.
+
+## API batching
+
+Concurrent upstream reads with identical authentication headers are collected for
+up to 300 ms and sent directly to WarEra in a single GET tRPC batch. Identical
+reads within that batch share one response; responses are not retained by the
+batcher. This works with `WARERA_MCP_CACHE_ENABLED=false`.
+
+Company details and bonuses, battle details and live status, and player profile
+enrichment can share batches. Reads that depend on an earlier result still run
+in separate stages. Sequential MCP tool invocations cannot share a batch.
+
+Batches send early at 20 pending calls and split before their encoded URL exceeds
+8000 bytes. Isolated reads use the original single-query GET format. The existing
+response byte limit applies to the entire batch. Queue capacity bounds active
+and pending logical reads; cancellation removes unused work without affecting
+other callers. Each item retains its own result, error, and retry budget.
+
+Configure batching through:
+
+| Environment variable | Default | Meaning |
+| --- | --- | --- |
+| `WARERA_MCP_BATCHING_ENABLED` | `true` | Set `false` to use individual requests |
+| `WARERA_MCP_BATCH_WINDOW_SECONDS` | `0.3` | Collection delay per stage (0–0.4 seconds) |
+| `WARERA_MCP_BATCH_MAX_SIZE` | `20` | Maximum pending calls per batch (1–50) |
+| `WARERA_MCP_BATCH_MAX_URL_BYTES` | `8000` | Maximum encoded batch URL size |
+
+An individual query too large for the batch URL budget uses the existing single
+GET path. Transport limits and rate limiting apply to physical HTTP requests.
+With batching enabled, circuit health is also recorded once per HTTP attempt;
+retries check the circuit before sending again. `warera_requests_total` counts
+logical reads, while `warera_http_requests_total` counts actual HTTP attempts;
+`warera_batches_total` and `warera_batch_size` describe multi-query batches.
+Batching reduces HTTP overhead; WarEra may still count each procedure toward its
+API quota.

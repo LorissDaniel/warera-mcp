@@ -76,6 +76,20 @@ class UpstreamStub:
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         procedure = request.url.path.rsplit("/", 1)[-1]
+        if request.url.params.get("batch") == "1":
+            payloads = []
+            statuses = []
+            for name in procedure.split(","):
+                route = self._routes.get(name) or self._fallback
+                status, payload, _ = route or (404, {}, {})
+                if status >= 400 and "error" not in payload:
+                    payload = {
+                        "error": {"json": {"data": {"httpStatus": status, "code": str(status)}}}
+                    }
+                payloads.append(payload)
+                statuses.append(status)
+            status = statuses[0] if len(set(statuses)) == 1 else 207
+            return httpx.Response(status, json=payloads)
         route = self._routes.get(procedure) or self._fallback
         if route is None:
             return httpx.Response(
@@ -93,11 +107,35 @@ class UpstreamStub:
         return httpx.Response(status, json=payload, headers=headers)
 
     # -- assertion helpers ---------------------------------------------------
+    def _logical_requests(self) -> list[httpx.Request]:
+        """Unpack batch items for assertions; requests still records physical HTTP."""
+        logical: list[httpx.Request] = []
+        for request in self.requests:
+            if request.url.params.get("batch") != "1":
+                logical.append(request)
+                continue
+            names = request.url.path.rsplit("/", 1)[-1].split(",")
+            indexed = json.loads(request.url.params["input"])
+            for index, name in enumerate(names):
+                logical.append(
+                    httpx.Request(
+                        request.method,
+                        request.url.copy_with(path="/trpc/" + name, query=None),
+                        params={"input": json.dumps(indexed[str(index)])},
+                        headers=request.headers,
+                    )
+                )
+        return logical
+
     def procedures(self) -> list[str]:
-        return [request.url.path.rsplit("/", 1)[-1] for request in self.requests]
+        return [request.url.path.rsplit("/", 1)[-1] for request in self._logical_requests()]
 
     def calls(self, procedure: str) -> list[httpx.Request]:
-        return [request for request in self.requests if request.url.path.endswith(procedure)]
+        return [
+            request
+            for request in self._logical_requests()
+            if request.url.path == "/trpc/" + procedure
+        ]
 
     def inputs(self, procedure: str) -> list[dict[str, Any]]:
         parsed: list[dict[str, Any]] = []
@@ -124,8 +162,9 @@ def stub() -> UpstreamStub:
 
 @pytest.fixture
 def settings() -> Settings:
-    """Deterministic settings; rate limits are relaxed so tests never sleep."""
+    """Fast deterministic settings with production batching enabled."""
     return Settings(
+        batch_window_seconds=0.005,
         max_retries=0,
         outbound_rate_per_second=1000,
         outbound_rate_burst=1000,

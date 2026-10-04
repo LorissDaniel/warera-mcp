@@ -84,9 +84,11 @@ async def test_authenticated_response_does_not_populate_the_public_cache(
         await client.aclose()
 
 
+@pytest.mark.parametrize("batching_enabled", [True, False])
 async def test_interleaved_player_credentials_do_not_leak(
-    settings: Settings, stub: UpstreamStub
+    settings: Settings, stub: UpstreamStub, batching_enabled: bool
 ) -> None:
+    settings = settings.model_copy(update={"batching_enabled": batching_enabled})
     stub.route(ANY_OF_PROCEDURE, [])
     cache = PublicTtlCache(max_entries=8)
     client = make_client(settings, stub, cache)
@@ -107,7 +109,7 @@ async def test_interleaved_player_credentials_do_not_leak(
         await client.aclose()
 
     headers = stub.headers_for(ANY_OF_PROCEDURE)
-    assert len(headers) == 8
+    assert len(headers) == (4 if batching_enabled else 8)
     seen = [header.get("x-api-key") for header in headers]
     assert set(seen) == {KEY_A, KEY_B}
     # No request ever carried two credentials, and no request carried the other

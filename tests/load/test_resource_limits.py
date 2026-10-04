@@ -123,6 +123,7 @@ async def test_invalid_utf8_is_a_schema_error() -> None:
 async def test_reads_beyond_the_pending_cap_are_shed_not_queued() -> None:
     settings = Settings(
         max_retries=0,
+        batching_enabled=False,
         max_concurrent_requests=1,
         max_pending_requests=3,
         outbound_rate_per_second=1000,
@@ -160,6 +161,7 @@ async def test_reads_beyond_the_pending_cap_are_shed_not_queued() -> None:
 async def test_shed_reads_do_not_trip_the_circuit_breaker() -> None:
     settings = Settings(
         max_retries=0,
+        batching_enabled=False,
         max_concurrent_requests=1,
         max_pending_requests=1,
         circuit_failure_threshold=1,

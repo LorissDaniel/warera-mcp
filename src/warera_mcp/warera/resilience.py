@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from warera_mcp.warera.errors import (
+    WareraAPIError,
     WareraError,
     WareraRateLimited,
     WareraServerError,
@@ -183,6 +184,10 @@ class RetryPolicy:
             if server_delay is not None:
                 return min(max(server_delay, 0.0), ceiling)
             return min(self._backoff(attempt, random01), ceiling)
+        if isinstance(error, WareraAPIError) and error.http_status == 429:
+            return min(self._backoff(attempt, random01), self.max_retry_after_seconds)
+        if isinstance(error, WareraAPIError) and (error.http_status or 0) >= 500:
+            return self._backoff(attempt, random01)
         if isinstance(error, (WareraServerError, WareraTransportError)):
             return self._backoff(attempt, random01)
         return None
