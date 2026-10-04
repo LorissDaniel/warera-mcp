@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from warera_mcp.application.articles import ArticleService
 from warera_mcp.application.battles import BattleService
 from warera_mcp.application.catalog import ItemCatalog
 from warera_mcp.application.common import ServiceRuntime, UpstreamCaller
@@ -31,6 +32,7 @@ class Services:
     market: MarketService
     battles: BattleService
     events: EventService
+    articles: ArticleService
     rankings: BattleRankingService
     catalog: ItemCatalog
     game_configuration: GameConfigurationService
@@ -49,6 +51,7 @@ def build_services(runtime: ServiceRuntime) -> Services:
         market=MarketService(caller, runtime, catalog),
         battles=BattleService(caller, runtime),
         events=EventService(caller, runtime),
+        articles=ArticleService(caller),
         rankings=BattleRankingService(caller, runtime),
         catalog=catalog,
         game_configuration=game_configuration,

@@ -483,6 +483,41 @@ class EventSummary(DomainModel):
     summary: str | None = None
 
 
+class ArticleStats(DomainModel):
+    likes: int | None = None
+    dislikes: int | None = None
+    score: int | None = None
+    views: int | None = None
+    comments: int | None = None
+
+
+class Article(DomainModel):
+    """Published article metadata and optionally sanitized, untrusted text."""
+
+    id: str
+    title: str | None = None
+    author_id: str | None = None
+    language: str | None = None
+    category: str | None = None
+    published_at: UtcDateTime | None = None
+    stats: ArticleStats | None = None
+    content: str | None = None
+    content_truncated: bool = False
+
+
+class SearchArticlesResult(ToolResult):
+    articles: list[Article]
+    page: PageInfo
+    feed: str
+    content_included: bool
+    source_procedure: str = "article.getArticlesPaginated"
+
+
+class GetArticleResult(ToolResult):
+    article: Article
+    source_procedure: str = "article.getArticleLiteById"
+
+
 class SearchEventsResult(ToolResult):
     """Output of ``search_events``."""
 
@@ -491,6 +526,8 @@ class SearchEventsResult(ToolResult):
 
 
 __all__ = [
+    "Article",
+    "ArticleStats",
     "BattleDetail",
     "BattleLiveStatus",
     "BattleRankingEntry",
@@ -504,6 +541,7 @@ __all__ = [
     "Deposit",
     "DomainModel",
     "EventSummary",
+    "GetArticleResult",
     "GetBattleResult",
     "GetCompanyOverviewResult",
     "GetCountryOverviewResult",
@@ -526,6 +564,7 @@ __all__ = [
     "RegionDetail",
     "RegionSummary",
     "RoundSummary",
+    "SearchArticlesResult",
     "SearchBattlesResult",
     "SearchEventsResult",
     "ToolResult",

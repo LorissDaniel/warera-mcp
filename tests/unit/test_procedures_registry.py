@@ -69,6 +69,8 @@ EXPECTED_READ_ONLY_PROCEDURES = frozenset(
         "battle.getLiveBattleData",
         "battleRanking.getRanking",
         "event.getEventsPaginated",
+        "article.getArticlesPaginated",
+        "article.getArticleLiteById",
         "gameConfig.getGameConfig",
         "gameConfig.getDates",
     }

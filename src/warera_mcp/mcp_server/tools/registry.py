@@ -13,6 +13,7 @@ from types import ModuleType
 from mcp.server.fastmcp import FastMCP
 
 from warera_mcp.mcp_server.tools import (
+    articles,
     battles,
     companies,
     events,
@@ -41,6 +42,8 @@ APPROVED_TOOL_NAMES: frozenset[str] = frozenset(
         "get_battle",
         "get_battle_ranking",
         "search_events",
+        "search_articles",
+        "get_article",
         "get_game_rules",
         "get_skill_progression",
         "get_item_details",
@@ -56,6 +59,7 @@ _TOOL_MODULES: tuple[ModuleType, ...] = (
     battles,
     rankings,
     events,
+    articles,
     game_configuration,
 )
 

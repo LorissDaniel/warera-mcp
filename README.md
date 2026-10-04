@@ -6,7 +6,7 @@
 
 A small, **read-only** [MCP](https://modelcontextprotocol.io) server that lets an AI assistant
 look things up in the browser game **WarEra** — players, companies, countries, markets, battles and
-events — and answer questions about them in plain language.
+events and articles — and answer questions about them in plain language.
 
 > ### ⚠️ Unofficial project
 > This is an **unofficial, community-made** project. It is **not affiliated with, endorsed by,
@@ -27,6 +27,9 @@ raw web requests, so you can simply ask:
 - *"What is the current price of iron, and how deep is the order book?"*
 - *"Which countries is Freedonia at war with, and are there active battles?"*
 - *"Who is dealing the most damage in this battle?"*
+- *"Elencami gli ultimi 10 articoli pubblicati."*
+- *"Elencami gli articoli in italiano."*
+- *"Riassumi le ultime novità di WarEra tramite gli articoli."*
 
 The server fetches the data, tidies it up, and hands the assistant a compact, size-limited answer. Tools accept optional request-scoped WarEra credentials (`api_key` or `jwt`) in `player_context`; the project never provides a default or global WarEra credential.
 
@@ -40,9 +43,32 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 | Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
 | Battles | `search_battles`, `get_battle`, `get_battle_ranking` |
 | Events | `search_events` |
+| Articles | `search_articles`, `get_article` |
 | Official configuration | `get_game_rules`, `get_skill_progression`, `get_item_details`, `get_game_schedule` |
 
 Every tool is marked read-only. There is deliberately **no** generic "call any endpoint" tool.
+
+### Articles
+
+`search_articles` defaults to the latest published feed (`feed="last"`, `limit=10`,
+maximum 20). It forwards language codes (`languages=["it"]` for Italian), categories
+(e.g. `["news"]`), `author_id` and `positive_score_only` to WarEra. Other public feeds
+are `daily`, `weekly` and `top`; use `last` for chronological news. Pass `page.next_cursor`
+with the same filters to continue. Personal `my`/`subscriptions` feeds are not exposed.
+
+Metadata-only results are compact. Set `include_content=true` for summaries: the feed
+already includes article bodies, which the server converts from HTML into untrusted
+plain text without fetching images or links. Each body is limited to 12,000 characters
+(lower it with `content_max_chars`, minimum 280); `content_truncated` and warnings
+identify incomplete text. The existing output-byte budget still applies: request fewer
+articles or shorter content if necessary. The LLM writes the summary, cites titles/IDs,
+authors and publication dates, and distinguishes player claims from official announcements.
+
+`get_article(article_id=...)` returns only title and basic statistics via the lite
+endpoint. It does not provide body text. The full-detail `article.getArticleById` endpoint
+is deliberately excluded because it can count a view; summaries use the paginated feed.
+Both exposed queries were checked anonymously against the
+[official API documentation](https://api2.warera.io/docs/).
 
 ## Quick start
 

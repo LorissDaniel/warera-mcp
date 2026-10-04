@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from warera_mcp.domain.article_normalization import normalize_article
 from warera_mcp.domain.models import DomainModel
 from warera_mcp.domain.normalization import (
     normalize_battle_detail,
@@ -85,6 +86,10 @@ NORMALIZERS: dict[str, Callable[[Any], Any]] = {
         normalize_battle_ranking_entry(item, entity_type="user") for item in data["items"]
     ],
     "event.getEventsPaginated": lambda data: [normalize_event(item) for item in data["items"]],
+    "article.getArticlesPaginated": lambda data: [
+        normalize_article(item, include_content=True) for item in data["items"]
+    ],
+    "article.getArticleLiteById": normalize_article,
     "gameConfig.getGameConfig": lambda data: data,
     "gameConfig.getDates": lambda data: data,
 }

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Synthetic text and IDs using fields verified against official API docs and anonymous GET responses on 2026-10-04. Not live captures.",
+  "domain": "articles",
+  "entries": [
+    {
+      "procedure": "article.getArticlesPaginated",
+      "auth": "PUBLIC",
+      "input": {"type": "last", "limit": 2, "languages": ["it"]},
+      "data": {
+        "items": [
+          {
+            "_id": "article-anon-1",
+            "title": "Notizie dal mondo",
+            "content": "<p>Un articolo di esempio &amp; un aggiornamento.</p>",
+            "language": "it",
+            "category": "news",
+            "author": "player-anon-1",
+            "publishedAt": "2026-10-04T10:00:00Z",
+            "isPublished": true,
+            "isDeleted": false,
+            "stats": {"likes": 2, "dislikes": 0, "score": 2, "views": 5, "comments": 1},
+            "__v": 0
+          }
+        ],
+        "nextCursor": "cursor-anon-articles"
+      }
+    },
+    {
+      "procedure": "article.getArticleLiteById",
+      "auth": "PUBLIC",
+      "input": {"articleId": "article-anon-1"},
+      "data": {
+        "_id": "article-anon-1",
+        "title": "Notizie dal mondo",
+        "stats": {"likes": 2, "dislikes": 0, "score": 2, "views": 5, "comments": 1}
+      }
+    }
+  ]
+}

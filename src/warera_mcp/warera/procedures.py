@@ -32,6 +32,7 @@ class Domain(StrEnum):
     WORK = "work"
     BATTLES = "battles"
     EVENTS = "events"
+    ARTICLES = "articles"
     CONFIGURATION = "configuration"
 
 
@@ -273,6 +274,27 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
        evidence="[anonymous GET, verified] official game configuration snapshot"),
     _p("gameConfig.getDates", Domain.CONFIGURATION, ttl=30,
        evidence="[anonymous GET, verified] official UTC game schedule"),
+    _p(
+        "article.getArticlesPaginated",
+        Domain.ARTICLES,
+        required=frozenset({"type"}),
+        optional=frozenset({
+            "limit", "cursor", "userId", "categories", "languages", "positiveScoreOnly",
+        }),
+        ttl=30,
+        evidence=(
+            "[official docs, live anonymous GET] last feed includes content; languages:it verified"
+        ),
+    ),
+    _p(
+        "article.getArticleLiteById",
+        Domain.ARTICLES,
+        required=frozenset({"articleId"}),
+        ttl=30,
+        evidence="[official docs, live anonymous GET] title/stats without counting a view",
+    ),
+    # getArticleById is deliberately absent: it may count a view. The paginated
+    # feed already includes article content for summaries without that endpoint.
 )
 
 PROCEDURES: Final[Mapping[str, ProcedureSpec]] = MappingProxyType(
