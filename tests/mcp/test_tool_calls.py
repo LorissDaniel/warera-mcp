@@ -770,7 +770,7 @@ def test_every_v1_tool_accepts_optional_request_credentials(
     [
         ("search_market", {"item_code": "iron", "side": "sideways"}),
         ("search_market", {"item_code": "iron", "max_orders": 0}),
-        ("search_market", {"item_code": "iron", "max_orders": 99}),
+        ("search_market", {"item_code": "iron", "max_orders": 101}),
         ("search_events", {"limit": 0}),
         ("search_events", {"limit": 500}),
         ("get_battle_ranking", {"battle_id": "b1", "entity_type": "guild"}),

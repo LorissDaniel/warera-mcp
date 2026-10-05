@@ -40,7 +40,7 @@ BATTLE_BY_ID_PROCEDURE = "battle.getById"
 LIVE_BATTLE_PROCEDURE = "battle.getLiveBattleData"
 
 UNFILTERED_PAGE_WARNING = (
-    "no country or active filter was supplied; this is the first upstream page and "
+    "no country, war, defender-region or active filter was supplied; this is an upstream page and "
     "its ordering is not guaranteed"
 )
 
@@ -59,6 +59,9 @@ class BattleService:
         is_active: bool | None = None,
         limit: int,
         cursor: str | None = None,
+        war_id: str | None = None,
+        defender_region_id: str | None = None,
+        direction: str | None = None,
         credentials: PlayerRequestContext | None = None,
         correlation_id: str | None = None,
     ) -> SearchBattlesResult:
@@ -71,6 +74,13 @@ class BattleService:
         if cursor is not None:
             params["cursor"] = cursor
 
+        for key, value in (
+            ("warId", war_id),
+            ("defenderRegionId", defender_region_id),
+            ("direction", direction),
+        ):
+            if value is not None:
+                params[key] = value
         read = await self._caller.read(
             operation,
             BATTLES_PROCEDURE,
@@ -94,11 +104,23 @@ class BattleService:
         else:
             warnings.append("country names were unavailable; country ids are returned")
 
+        rows = items_of(read.data)
+        truncated = len(rows) > limit
+        if truncated:
+            warnings.append(
+                "upstream exceeded the requested limit; omitted battle rows "
+                "may not be recoverable through next_cursor"
+            )
         battles = [
             normalize_battle_summary(item.data, country_names=country_names)
-            for item in items_of(read.data)
+            for item in rows[:limit]
         ]
-        if country_id is None and is_active is None:
+        if (
+            country_id is None
+            and is_active is None
+            and war_id is None
+            and defender_region_id is None
+        ):
             warnings.append(UNFILTERED_PAGE_WARNING)
         page = page_info(read.data)
         if page.has_more:
@@ -108,6 +130,7 @@ class BattleService:
             observed_at=composite_observed_at(reads),
             warnings=warnings,
             battles=battles,
+            partial=truncated,
             page=page,
         )
 

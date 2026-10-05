@@ -21,12 +21,12 @@ from warera_mcp.mcp_server.tools.base import (
 )
 
 GET_PLAYER_DESCRIPTION = (
-    "Get a player's public profile and selected public stats, including a current skill summary "
-    "and its components, ranking values/ranks/tiers, MU id, military rank, activity dates and "
-    "leveling/stats when reported. Summary maps use reported totals/values without formulas. "
-    "Use the WarEra user ID when available; username "
-    "resolution requires an exact, unambiguous match and otherwise asks you to disambiguate. "
-    "Does not return private inventory or balance; use get_player_resources for those."
+    "Get public player facts: current skill summary/components, rankings, MU, activity and stats. "
+    "Use user_id or one exact, unambiguous username. By default add full-profile region/location, "
+    "company/party links, equipped-slot IDs and mission statistics/dates; fields selects groups. "
+    "include_full_profile=false uses lite only. profile_source identifies the source; full-read "
+    "failure retains lite with partial=true. Missing fields are unknown. Equipment IDs are not "
+    "inventory; public wealth is not spendable money. Use get_player_resources for balances."
 )
 
 
@@ -93,10 +93,19 @@ def register(mcp: FastMCP) -> None:
                 description="Exact in-game username.",
             ),
         ] = None,
+        include_full_profile: Annotated[
+            bool, Field(description="Enrich with reviewed fields from the public full profile.")
+        ] = True,
         fields: Annotated[
             list[PlayerField] | None,
             Field(
-                default=None, max_length=10, description="Field groups to include; omit for all."
+                default=None,
+                max_length=10,
+                description="Groups: profile (MU/company/party), location "
+                "(country/region/location), "
+                "level, skills_summary, rankings_summary, activity, statistics, missions, "
+                "equipment. "
+                "Omit for all; identity is always retained.",
             ),
         ] = None,
     ) -> CallToolResult:
@@ -106,6 +115,7 @@ def register(mcp: FastMCP) -> None:
             user_id=user_id,
             username=username,
             fields=fields,
+            include_full_profile=include_full_profile,
             credentials=credentials,
             correlation_id=call_id(ctx),
         )

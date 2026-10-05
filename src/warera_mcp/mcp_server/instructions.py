@@ -43,6 +43,25 @@ How to use it:
   Global quoted prices do not describe executable bids/asks or quantities.
   When those are required, use search_market for each relevant item; the global
   price catalog does not contain order-book data.
+- For work offers, get_work_market applies region/citizenship/user_id/level/energy/
+  production filters upstream. item_code selects the wage benchmark only, not
+  an offer-product filter. minimum_net_wage is applied locally to each page,
+  falling back to gross when net is absent; an empty page does not imply no jobs
+  if page.has_more. Continue with page.next_cursor and identical filters. Do not
+  infer hourly wages or independently certify eligibility from these fields.
+- search_market requests up to max_orders (1-100) visible orders per side.
+  Existing buy orders are bids; sell orders are asks. For purchases use asks,
+  for sales use bids. For depth estimates choose one side and compare
+  depth.quantity against the requested quantity; partial fills are not full fills.
+- search_battles and search_events apply documented filters before pagination.
+  Continue with page.next_cursor and identical filters/direction. Defender-region
+  filtering concerns the attacked region. Event-type filter codes are listed in
+  the schema; output types are lowercase. A page is not full historical coverage.
+- get_player_companies requests bounded upstream ID pages via perPage. Consume
+  next_offset using the SAME cursor first, then page.next_cursor with offset=0.
+  total_count is omitted when the entire ownership count is unknown. The company
+  link in a player profile alone does not establish company ownership; use this
+  ownership tool. Pages can change between reads; retain observation times.
 - When an item name is uncertain or natural-language rather than a WarEra code,
   call `get_item_catalog` first. It exposes the complete locally verified canonical
   item-code catalog without a network request; match the user's language to one of
@@ -99,7 +118,13 @@ How to use it:
   a bounded budget; unresolved entries retain ids. Rosters/rankings can change
   between offset pages; report the observation time and page coverage.
 - `get_player` exposes military_unit_id, skill_details, ranking_details, leveling,
-  stats and activity dates when returned. Follow military_unit_id with MU tools.
+  stats and activity dates when returned. By default it also reads the full public
+  profile for region/location, company/party references, mission facts and equipped
+  slot IDs. fields selects groups; include_full_profile=false skips enrichment.
+  profile_source reports lite/full; failed enrichment keeps lite with partial=true.
+  Equipment IDs are references, not equipment attributes or inventory quantities.
+  Mission claims/XP and claim dates are reported facts, not an inferred reward
+  schedule. Follow military_unit_id with MU tools.
   Skills summaries use reported totals (or values if total is absent); skill_details
   preserves total_after_soft_cap separately. Do not recompute or substitute one
   total for another. modifiers_fraction contains fractions, while reported skill

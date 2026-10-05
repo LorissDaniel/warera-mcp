@@ -147,7 +147,7 @@ class MarketService:
         read = await self._caller.read(
             operation,
             TOP_ORDERS_PROCEDURE,
-            {"itemCode": item_code},
+            {"itemCode": item_code, "limit": max_orders},
             credentials=credentials,
             correlation_id=correlation_id,
         )
@@ -196,6 +196,12 @@ class MarketService:
         limit: int,
         region_id: str | None = None,
         minimum_net_wage: float | None = None,
+        citizenship: str | None = None,
+        level: float | None = None,
+        energy: float | None = None,
+        production: float | None = None,
+        user_id: str | None = None,
+        cursor: str | None = None,
         credentials: PlayerRequestContext | None = None,
         correlation_id: str | None = None,
     ) -> GetWorkMarketResult:
@@ -204,6 +210,18 @@ class MarketService:
             item_code, operation=operation, credentials=credentials, correlation_id=correlation_id
         )
 
+        params: dict[str, object] = {"limit": limit}
+        for key, value in (
+            ("regionId", region_id),
+            ("citizenship", citizenship),
+            ("level", level),
+            ("energy", energy),
+            ("production", production),
+            ("userId", user_id),
+            ("cursor", cursor),
+        ):
+            if value is not None:
+                params[key] = value
         wage_outcome, offers_outcome = await asyncio.gather(
             self._caller.try_read(
                 operation,
@@ -215,7 +233,7 @@ class MarketService:
             self._caller.try_read(
                 operation,
                 WORK_OFFERS_PROCEDURE,
-                {"limit": limit},
+                params,
                 credentials=credentials,
                 correlation_id=correlation_id,
             ),
@@ -232,6 +250,7 @@ class MarketService:
             partial = True
             warnings.append("wage statistics were unavailable")
 
+        page = None
         offers: list[WorkOffer] = []
         if isinstance(offers_outcome, UpstreamRead):
             reads.append(offers_outcome)
@@ -239,16 +258,24 @@ class MarketService:
             filtered = [
                 offer
                 for offer in raw_offers
-                if _matches_work_filters(
-                    offer, region_id=region_id, minimum_net_wage=minimum_net_wage
-                )
+                if _matches_work_filters(offer, region_id=None, minimum_net_wage=minimum_net_wage)
             ]
             if len(filtered) != len(raw_offers):
-                warnings.append("filters were applied locally to the first offer page")
-            offers = filtered[:limit]
-            if page_info(offers_outcome.data).has_more:
                 warnings.append(
-                    "more work offers are available upstream; narrow filters or paginate"
+                    "minimum_net_wage was applied locally to this offer page; "
+                    "it is not an upstream eligibility filter"
+                )
+            offers = filtered[:limit]
+            if len(filtered) > limit:
+                partial = True
+                warnings.append(
+                    "upstream exceeded the requested limit; omitted work offers "
+                    "may not be recoverable through next_cursor"
+                )
+            page = page_info(offers_outcome.data)
+            if page.has_more:
+                warnings.append(
+                    "more work offers are available; pass page.next_cursor with the same filters"
                 )
         else:
             partial = True
@@ -260,6 +287,7 @@ class MarketService:
             item_code=item_code,
             wage_stats=wage_stats,
             offers=offers,
+            page=page,
             partial=partial,
         )
 

@@ -1,16 +1,17 @@
 """Semantic world-event retrieval.
 
-Upstream event filters are not contract-verified, so ``search_events`` forwards
-only ``limit``/``cursor`` and applies country/type filters locally to the fetched
-page. Event payloads are untrusted third-party text: only a short sanitized
+Documented country/type filters run upstream before cursor pagination.
+Event payloads are untrusted third-party text: only a short sanitized
 summary is exposed, and every result carries an explicit untrusted-content
 warning.
 """
 
 from __future__ import annotations
 
+from warera_mcp import errors as app_errors
 from warera_mcp.application.common import ServiceRuntime, UpstreamCaller
 from warera_mcp.auth.credentials import PlayerRequestContext
+from warera_mcp.domain.enums import EVENT_TYPES
 from warera_mcp.domain.models import SearchEventsResult
 from warera_mcp.domain.normalization import items_of, normalize_event, page_info
 
@@ -43,6 +44,17 @@ class EventService:
         if cursor is not None:
             params["cursor"] = cursor
 
+        if country_id is not None:
+            params["countryId"] = country_id
+        if event_types:
+            codes = {code.casefold(): code for code in EVENT_TYPES}
+            if any(value.casefold() not in codes for value in event_types):
+                raise app_errors.invalid_input(
+                    "unsupported event type; use a documented code: " + ", ".join(EVENT_TYPES),
+                    operation,
+                    field="event_types",
+                )
+            params["eventTypes"] = list(dict.fromkeys(codes[v.casefold()] for v in event_types))
         read = await self._caller.read(
             operation,
             EVENTS_PROCEDURE,
@@ -50,17 +62,16 @@ class EventService:
             credentials=credentials,
             correlation_id=correlation_id,
         )
-        raw_events = [normalize_event(item.data) for item in items_of(read.data)]
+        rows = items_of(read.data)
+        truncated = len(rows) > limit
+        raw_events = [normalize_event(item.data) for item in rows[:limit]]
 
-        filtered = raw_events
         warnings: list[str] = []
-        if country_id is not None:
-            filtered = [event for event in filtered if country_id in event.related_ids]
-        if event_types:
-            wanted = {value.casefold() for value in event_types}
-            filtered = [event for event in filtered if (event.type or "").casefold() in wanted]
-        if len(filtered) != len(raw_events):
-            warnings.append("filters were applied locally to the first event page")
+        if truncated:
+            warnings.append(
+                "upstream exceeded the requested limit; omitted event rows "
+                "may not be recoverable through next_cursor"
+            )
 
         page = page_info(read.data)
         if page.has_more:
@@ -70,7 +81,8 @@ class EventService:
         return SearchEventsResult(
             observed_at=read.observed_at,
             warnings=warnings,
-            events=filtered,
+            events=raw_events,
+            partial=truncated,
             page=page,
         )
 

@@ -14,15 +14,19 @@ from warera_mcp.mcp_server.responses import quoted, success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
+    OpaqueCursor,
     PlayerContextInput,
     RequiredIdentifier,
     player_context_credentials,
 )
 
 GET_PLAYER_COMPANIES_DESCRIPTION = (
-    "List the companies a player owns, with product, location, workforce and optional production "
-    "bonus. This answers ownership questions in one call instead of many company lookups. It is "
-    "not a country-wide company directory."
+    "List a player's owned companies with product, location, workforce and optional production "
+    "bonus. Resolves user_id or exact username, requests an upstream page of up to 100 IDs using "
+    "perPage, then bounds detail reads by limit and the configured fan-out cap. First follow "
+    "next_offset with the SAME cursor; once next_offset is absent, follow page.next_cursor with "
+    "offset=0. total_count is known only when the first page contains the entire list. Missing "
+    "details set partial=true. Ownership does not prove stock or production capacity."
 )
 
 #: Matches the default ``Settings.max_fanout``; a lower configured cap still clamps
@@ -109,8 +113,15 @@ def register(mcp: FastMCP) -> None:
             ),
         ] = MAX_COMPANIES_PER_CALL,
         offset: Annotated[
-            int, Field(ge=0, le=10_000, default=0, description="Local offset into the owned list.")
+            int,
+            Field(
+                ge=0,
+                le=10_000,
+                default=0,
+                description="Local page offset; follow next_offset before page.next_cursor.",
+            ),
         ] = 0,
+        cursor: OpaqueCursor = None,
         include_bonus: Annotated[
             bool, Field(default=True, description="Fetch each company's production bonus.")
         ] = True,
@@ -122,15 +133,13 @@ def register(mcp: FastMCP) -> None:
             username=username,
             limit=limit,
             offset=offset,
+            cursor=cursor,
             include_bonus=include_bonus,
             credentials=credentials,
             correlation_id=call_id(ctx),
         )
         returned = len(result.companies)
-        summary = (
-            f"{returned} of {result.total_count} companies for "
-            f"{quoted(result.player.username or result.player.id)}"
-        )
+        summary = f"{returned} companies for {quoted(result.player.username or result.player.id)}"
         return success_result(
             result,
             summary=summary,

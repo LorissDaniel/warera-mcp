@@ -127,8 +127,9 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
         "tradingOrder.getTopOrders",
         Domain.MARKET,
         required=frozenset({"itemCode"}),
+        optional=frozenset({"limit"}),
         ttl=20,
-        evidence="[L,D] public visible order book; 'top' count/order unspecified upstream",
+        evidence="[OpenAPI, anonymous GET 2026-10-05] top order book; limit=25 returns 25 per side",
     ),
     _p(
         "tradingOrder.getAllOrdersByOwner",
@@ -186,6 +187,13 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
         evidence="[L,D,live] anonymous public profile projection",
     ),
     _p(
+        "user.getUserById",
+        Domain.PLAYERS,
+        required=frozenset({"userId"}),
+        ttl=300,
+        evidence="[OpenAPI, anonymous GET 2026-10-05] public full profile; reviewed fields only",
+    ),
+    _p(
         "search.searchUsers",
         Domain.PLAYERS,
         required=frozenset({"searchText"}),
@@ -219,9 +227,9 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     _p(
         "company.getCompanies",
         Domain.COMPANIES,
-        optional=frozenset({"userId", "limit", "cursor"}),
+        optional=frozenset({"userId", "perPage", "cursor"}),
         ttl=60,
-        evidence="[live] {userId} returns {items:[id]} without cursor; global page returns 10 ids",
+        evidence="[OpenAPI, anonymous GET 2026-10-05] user/global pages; perPage/cursor verified",
     ),
     _p(
         "company.getProductionBonus",
@@ -253,15 +261,28 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     _p(
         "workOffer.getWorkOffersPaginated",
         Domain.WORK,
-        optional=frozenset({"limit", "cursor"}),
+        optional=frozenset(
+            {
+                "limit",
+                "cursor",
+                "userId",
+                "regionId",
+                "citizenship",
+                "level",
+                "energy",
+                "production",
+            }
+        ),
         ttl=60,
-        evidence="[live] anonymous {items,nextCursor}; API filters unverified so applied locally",
+        evidence="[OpenAPI, anonymous GET 2026-10-05] paginated server-side work filters",
     ),
     # --------------------------------------------------------------- battles
     _p(
         "battle.getBattles",
         Domain.BATTLES,
-        optional=frozenset({"countryId", "isActive", "limit", "cursor"}),
+        optional=frozenset(
+            {"countryId", "isActive", "limit", "cursor", "warId", "defenderRegionId", "direction"}
+        ),
         ttl=15,
         evidence="[D,live] anonymous page; country filter matched an active battle side",
     ),
@@ -293,23 +314,31 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     ),
     # --------------------------------------------------------- military units
     _p(
-        "mu.getById", Domain.MILITARY_UNITS,
-        required=frozenset({"muId"}), ttl=60,
+        "mu.getById",
+        Domain.MILITARY_UNITS,
+        required=frozenset({"muId"}),
+        ttl=60,
         evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU dossier",
     ),
     _p(
-        "mu.getManyPaginated", Domain.MILITARY_UNITS,
-        optional=frozenset({"limit", "cursor", "memberId", "userId", "search"}), ttl=30,
+        "mu.getManyPaginated",
+        Domain.MILITARY_UNITS,
+        optional=frozenset({"limit", "cursor", "memberId", "userId", "search"}),
+        ttl=30,
         evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU page",
     ),
     _p(
-        "ranking.getRanking", Domain.MILITARY_UNITS,
-        required=frozenset({"rankingType"}), ttl=60,
+        "ranking.getRanking",
+        Domain.MILITARY_UNITS,
+        required=frozenset({"rankingType"}),
+        ttl=60,
         evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU rankings",
     ),
     _p(
-        "upgrade.getUpgradeByTypeAndEntity", Domain.MILITARY_UNITS,
-        required=frozenset({"upgradeType", "muId"}), ttl=60,
+        "upgrade.getUpgradeByTypeAndEntity",
+        Domain.MILITARY_UNITS,
+        required=frozenset({"upgradeType", "muId"}),
+        ttl=60,
         evidence=(
             "[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] "
             "headquarters/dormitories detail, including disabled status"
@@ -319,21 +348,36 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     _p(
         "event.getEventsPaginated",
         Domain.EVENTS,
-        optional=frozenset({"limit", "cursor"}),
+        optional=frozenset({"limit", "cursor", "countryId", "eventTypes"}),
         ttl=30,
-        evidence="[L,D,live] anonymous {items,nextCursor}; raw data treated as untrusted",
+        evidence="[OpenAPI, anonymous GET 2026-10-05] country/type filters and cursor",
     ),
-    _p("gameConfig.getGameConfig", Domain.CONFIGURATION, ttl=300,
-       evidence="[anonymous GET, verified] official game configuration snapshot"),
-    _p("gameConfig.getDates", Domain.CONFIGURATION, ttl=30,
-       evidence="[anonymous GET, verified] official UTC game schedule"),
+    _p(
+        "gameConfig.getGameConfig",
+        Domain.CONFIGURATION,
+        ttl=300,
+        evidence="[anonymous GET, verified] official game configuration snapshot",
+    ),
+    _p(
+        "gameConfig.getDates",
+        Domain.CONFIGURATION,
+        ttl=30,
+        evidence="[anonymous GET, verified] official UTC game schedule",
+    ),
     _p(
         "article.getArticlesPaginated",
         Domain.ARTICLES,
         required=frozenset({"type"}),
-        optional=frozenset({
-            "limit", "cursor", "userId", "categories", "languages", "positiveScoreOnly",
-        }),
+        optional=frozenset(
+            {
+                "limit",
+                "cursor",
+                "userId",
+                "categories",
+                "languages",
+                "positiveScoreOnly",
+            }
+        ),
         ttl=30,
         evidence=(
             "[official docs, live anonymous GET] last feed includes content; languages:it verified"

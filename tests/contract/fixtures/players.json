@@ -51,6 +51,41 @@
         ],
         "nextCursor": "cursor-anon-1"
       }
+    },
+    {
+      "procedure": "user.getUserById",
+      "auth": "PUBLIC",
+      "input": {
+        "userId": "u-anon-1"
+      },
+      "data": {
+        "_id": "u-anon-1",
+        "username": "Anon Player",
+        "country": "c-anon-1",
+        "region": "r-anon-1",
+        "location": "r-anon-2",
+        "party": "party-anon-1",
+        "company": "co-anon-1",
+        "equipment": {
+          "weapon": "eq-anon-1"
+        },
+        "missions": {
+          "claimedCount": 12,
+          "totalXpClaimed": 500,
+          "claimedAt": {
+            "daily": "2026-10-05T09:02:26Z"
+          }
+        },
+        "finishedTours": {
+          "onboarding": true
+        },
+        "muMaxLevelRewarded": 0,
+        "updatedAt": "2026-10-05T12:00:00Z",
+        "preferences": {
+          "privateExample": "omit"
+        },
+        "emailVerified": true
+      }
     }
   ]
 }

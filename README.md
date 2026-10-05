@@ -136,14 +136,71 @@ used as zero in calculations. These are global quoted prices; for visible
 bids, asks and quantities, use `search_market` for each relevant material. Visible
 orders are snapshots and do not guarantee execution or sufficient liquidity.
 
+### Filtered pages and visible market depth
+
+`get_work_market(item_code="iron", region_id=..., citizenship=..., level=18,
+energy=10, production=10)` sends the documented offer filters upstream before
+pagination. `user_id` filters by the offer's user ID. Zero numeric values are sent
+explicitly; omitted values are not inferred from a player profile. The tool does
+not independently certify eligibility. **`item_code` selects the wage benchmark,
+not the product of the offers.** Wages retain API units; no hourly rate is inferred.
+
+`limit` (1–10) controls the upstream offer page size. Continue with
+`page.next_cursor` and the same filters. `minimum_net_wage` remains a local filter
+of the fetched page, using gross wage when net wage is absent. A reported net wage
+of zero remains zero. An empty filtered page can still have later matches when
+`page.has_more=true`. Offer IDs, user/company/region IDs, remaining and initial
+quantities, and timestamps support follow-up queries. If offers cannot be read,
+`partial=true` and the absent `page` indicate unavailable coverage.
+
+`search_battles` applies `country_id`, `war_id`, `defender_region_id` and
+`is_active` upstream. A defender region is the attacked region. The optional
+`direction` is `forward` or `backward`; these API pagination directions do not
+promise chronological ordering. `search_events` applies `country_id` and
+`event_types` upstream. Its parameter schema lists the documented event codes;
+input casing is normalized and unsupported codes are rejected before a request.
+Output event types are lowercase, with `unknown:` for unrecognized types.
+If the API exceeds the requested page size, bounded output carries `partial=true`
+and a warning about omitted rows; the cursor may not recover those rows.
+For both tools, follow `page.next_cursor` with identical filters and direction
+where applicable; a page is not complete historical coverage.
+
+`search_market(item_code="iron", max_orders=25)` forwards `max_orders` as the API's
+`limit`, supporting 1–100 visible orders per side. Existing `buy` orders are bids;
+`sell` orders are asks. To estimate purchases choose `side="sell"`; to estimate
+sale proceeds choose `side="buy"`. With `depth_quantity`, compare returned
+`depth.quantity` against the target: the reported VWAP may cover only a partial
+fill. The book remains a bounded snapshot, not guaranteed executable liquidity.
+
+`get_player_companies` requests up to 100 company IDs per upstream page using the
+verified `perPage` parameter, then retrieves bounded detail batches using `limit`
+and the configured fan-out cap. To consume the current page, follow `next_offset`
+with the **same** `cursor`. Once `next_offset` is absent, follow `page.next_cursor`
+with `offset=0`. `total_count` is returned only when the first upstream page
+contains the entire owned list; a final continuation page's size is not a total.
+Ownership lists can change between reads; preserve observation times.
+
 ### Public player facts
 
 `get_player(user_id=...)` returns the public profile's MU id, military rank,
 active flag, creation date, numerical leveling/statistics and reported activity
 timestamps, alongside skills and rankings. `fields` can select `profile`,
 `location`, `level`, `skills_summary`, `rankings_summary`, `activity` and
-`statistics`; omitting `fields` selects all groups. The profile's `military_unit_id`
+`statistics`, `missions` and `equipment`; omitting `fields` selects all groups. The profile's `military_unit_id`
 links directly to the MU tools without a membership search.
+
+By default, `get_player` enriches `user.getUserLite` with reviewed game facts from
+`user.getUserById`: region and location IDs, company and party references, profile
+update time, reported MU maximum level rewarded, equipped-slot item IDs, mission
+statistics/claim timestamps and completed-tour flags. The `company_id` reference
+does not establish ownership; use `get_player_companies` for owned companies.
+`equipment_ids` identifies equipped slots, not inventory quantities or full item
+attributes. Missing fields remain unknown; account metadata and UI preferences
+are not exposed. `include_full_profile=false` skips enrichment. Focused reads
+containing only level, skills or rankings also use lite only. `profile_source`
+reports `lite` or `full`; failed or mismatched full-profile reads retain lite facts
+with `partial=true` and a warning. Additional maps are bounded to 64 entries.
+
 
 `skills` and `rankings` remain compact numerical maps, compatible with older
 scalar payloads. Nested skill summaries use reported `total`, falling back to

@@ -149,6 +149,15 @@ class PlayerProfile(DomainModel):
     stats: dict[str, float] | None = None
     activity_dates: dict[str, UtcDateTime] | None = None
     activity_date_lists: dict[str, list[UtcDateTime]] | None = None
+    location_id: str | None = None
+    company_id: str | None = None
+    party_id: str | None = None
+    updated_at: UtcDateTime | None = None
+    military_unit_max_level_rewarded: int | None = None
+    equipment_ids: dict[str, str] | None = None
+    mission_statistics: dict[str, float] | None = None
+    mission_claimed_at: dict[str, UtcDateTime] | None = None
+    finished_tours: dict[str, bool] | None = None
 
 
 class GetPlayerResult(ToolResult):
@@ -156,6 +165,8 @@ class GetPlayerResult(ToolResult):
 
     player: PlayerProfile
     resolved_by: Literal["user_id", "username"]
+    profile_source: Literal["lite", "full"] = "lite"
+    partial: bool = False
 
 
 class PlayerResourcesResult(ToolResult):
@@ -213,7 +224,9 @@ class GetPlayerCompaniesResult(ToolResult):
 
     player: PlayerRef
     companies: list[CompanySummary]
-    total_count: int
+    total_count: int | None = None
+    page: PageInfo = Field(default_factory=PageInfo)
+    next_offset: int | None = None
     has_more: bool
     partial: bool = False
 
@@ -460,9 +473,14 @@ class WageStats(DomainModel):
 class WorkOffer(DomainModel):
     """One work offer, projected and optionally locally filtered."""
 
+    id: str | None = None
+    user_id: str | None = None
     company_id: str | None = None
     region_id: str | None = None
     quantity: float | None = None
+    initial_quantity: float | None = None
+    created_at: UtcDateTime | None = None
+    updated_at: UtcDateTime | None = None
     wage: float | None = None
     wage_after_tax: float | None = None
     citizenship: str | None = None
@@ -473,6 +491,7 @@ class GetWorkMarketResult(ToolResult):
     """Output of ``get_work_market``."""
 
     item_code: str
+    page: PageInfo | None = None
     wage_stats: WageStats | None = None
     offers: list[WorkOffer] = Field(default_factory=list)
     partial: bool = False
@@ -532,6 +551,7 @@ class SearchBattlesResult(ToolResult):
     """Output of ``search_battles``."""
 
     battles: list[BattleSummary]
+    partial: bool = False
     page: PageInfo
 
 
@@ -722,6 +742,7 @@ class SearchEventsResult(ToolResult):
     """Output of ``search_events``."""
 
     events: list[EventSummary]
+    partial: bool = False
     page: PageInfo
 
 

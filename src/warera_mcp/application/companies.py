@@ -33,6 +33,7 @@ from warera_mcp.domain.normalization import (
     normalize_company_summary,
     normalize_production_bonus,
     normalize_region_summary,
+    page_info,
 )
 from warera_mcp.warera.client import UpstreamRead
 from warera_mcp.warera.schemas import as_sequence, extract_ident, record_of
@@ -81,6 +82,7 @@ class CompanyService:
         username: str | None,
         limit: int,
         offset: int,
+        cursor: str | None = None,
         include_bonus: bool,
         credentials: PlayerRequestContext | None = None,
         correlation_id: str | None = None,
@@ -93,10 +95,13 @@ class CompanyService:
             correlation_id=correlation_id,
             operation=operation,
         )
+        params: dict[str, object] = {"userId": resolved.profile.id, "perPage": 100}
+        if cursor is not None:
+            params["cursor"] = cursor
         listing = await self._caller.read(
             operation,
             COMPANIES_BY_USER_PROCEDURE,
-            {"userId": resolved.profile.id},
+            params,
             credentials=credentials,
             correlation_id=correlation_id,
         )
@@ -107,8 +112,17 @@ class CompanyService:
         if effective_limit < limit:
             warnings.append(f"limit was clamped to the configured fan-out cap ({effective_limit})")
         page_ids = all_ids[offset : offset + effective_limit]
-        total_count = len(all_ids)
-        has_more = offset + len(page_ids) < total_count
+        page = page_info(listing.data)
+        total_count = len(all_ids) if cursor is None and not page.has_more else None
+        next_offset = offset + len(page_ids) if offset + len(page_ids) < len(all_ids) else None
+        has_more = next_offset is not None or page.has_more
+        if next_offset is not None:
+            warnings.append(
+                "more companies remain on this upstream page; use next_offset "
+                "with the current cursor before following page.next_cursor"
+            )
+        elif page.has_more:
+            warnings.append("more companies are available; pass page.next_cursor with offset=0")
 
         detail_task = asyncio.ensure_future(
             bounded_try_reads(
@@ -162,6 +176,8 @@ class CompanyService:
             player=PlayerRef(id=resolved.profile.id, username=resolved.profile.username),
             companies=companies,
             total_count=total_count,
+            page=page,
+            next_offset=next_offset,
             has_more=has_more,
             partial=partial,
         )

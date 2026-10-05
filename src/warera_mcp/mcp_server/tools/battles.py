@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult
@@ -16,6 +16,7 @@ from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
     OpaqueCursor,
+    OptionalIdentifier,
     PlayerContextInput,
     RequiredIdentifier,
     SmallLimit,
@@ -37,11 +38,15 @@ def _battle_list_summary(result: SearchBattlesResult) -> str:
         defender_name = (defender.country_name if defender else None) or (
             defender.country_id if defender else "?"
         )
-        attacker_damage = attacker.damages if attacker and attacker.damages is not None else 0
-        defender_damage = defender.damages if defender and defender.damages is not None else 0
+        attacker_damage = (
+            f"{attacker.damages:g}" if attacker and attacker.damages is not None else "?"
+        )
+        defender_damage = (
+            f"{defender.damages:g}" if defender and defender.damages is not None else "?"
+        )
         lines.append(
             f"{index}. {kind}: {attacker_name} vs {defender_name} "
-            f"(danni {attacker_damage:g}-{defender_damage:g})"
+            f"(danni {attacker_damage}-{defender_damage})"
         )
 
     page = getattr(result, "page", None)
@@ -49,11 +54,15 @@ def _battle_list_summary(result: SearchBattlesResult) -> str:
     if page is not None and page.has_more:
         continuation = f"; altre battaglie disponibili, next_cursor={page.next_cursor}"
     return f"{len(battles)} battaglie restituite: " + "; ".join(lines) + continuation
+
+
 SEARCH_BATTLES_DESCRIPTION = (
-    "List battles, optionally filtered by country and active state. Each side includes the "
-    "human-readable country name and id. Without a filter this is the first upstream page, and "
-    "its ordering is not guaranteed, so do not describe it as 'latest'. For a battle leaderboard "
-    "use get_battle_ranking."
+    "Search one battle page with upstream country_id, war_id, defender_region_id and is_active "
+    "filters. Filters combine; a defender region is the attacked region, not any region on either "
+    "side. Follow page.next_cursor with identical filters and direction; forward/backward is API "
+    "pagination direction, not a promise of chronological order. Sides include country names/IDs "
+    "when available. An unfiltered page is not necessarily the latest battles. Use get_battle for "
+    "status and get_battle_ranking for contributions."
 )
 
 GET_BATTLE_DESCRIPTION = (
@@ -87,6 +96,12 @@ def register(mcp: FastMCP) -> None:
         ] = None,
         limit: SmallLimit = 5,
         cursor: OpaqueCursor = None,
+        war_id: OptionalIdentifier = None,
+        defender_region_id: OptionalIdentifier = None,
+        direction: Annotated[
+            Literal["forward", "backward"] | None,
+            Field(description="Upstream pagination direction; keep it unchanged when continuing."),
+        ] = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
         credentials = player_context_credentials(player_context)
@@ -95,6 +110,9 @@ def register(mcp: FastMCP) -> None:
             is_active=is_active,
             limit=limit,
             cursor=cursor,
+            war_id=war_id,
+            defender_region_id=defender_region_id,
+            direction=direction,
             credentials=credentials,
             correlation_id=call_id(ctx),
         )
@@ -141,9 +159,7 @@ def register(mcp: FastMCP) -> None:
         )
         return success_result(
             result,
-            summary=(
-                f"Battle {result.battle.id}: {attacker_name} vs {defender_name} is {state}"
-            ),
+            summary=(f"Battle {result.battle.id}: {attacker_name} vs {defender_name} is {state}"),
             operation="get_battle",
             max_bytes=runtime.settings.max_output_bytes,
         )

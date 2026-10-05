@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from warera_mcp.domain.enums import canonical_enum
+from warera_mcp.domain.enums import EVENT_TYPES, canonical_enum
 from warera_mcp.domain.models import (
     BattleDetail,
     BattleLiveStatus,
@@ -314,6 +314,20 @@ def _profile_dates(record: Record) -> tuple[dict[str, datetime], dict[str, list[
 
 
 # ------------------------------------------------------------------------- players
+def _profile_ident_map(record: Record, key: str) -> dict[str, str] | None:
+    mapping = as_mapping(record.raw(key))
+    if mapping is None:
+        return None
+    if len(mapping) > PROFILE_MAP_CAP:
+        record.problems.append(f"$.player.{key}: truncated to 64 entries")
+    result: dict[str, str] = {}
+    for code, value in list(mapping.items())[:PROFILE_MAP_CAP]:
+        ident = extract_ident(value)
+        if _PROFILE_CODE.fullmatch(code) and ident is not None:
+            result[code] = ident
+    return result or None
+
+
 def normalize_player_lite(
     payload: object,
     *,
@@ -341,6 +355,34 @@ def normalize_player_lite(
             record.problems.append(f"$.player.{group}: truncated to 64 entries")
     skills, rankings, skill_values, ranking_values = _profile_details(record)
     dates, date_lists = _profile_dates(record)
+    missions = record.child("missions")
+    claimed = missions.child("claimedAt") if missions else None
+    mission_dates = (
+        {
+            code: stamp
+            for code in list(claimed.data.keys())[:PROFILE_MAP_CAP]
+            if _PROFILE_CODE.fullmatch(code) and (stamp := claimed.timestamp(code)) is not None
+        }
+        if claimed
+        else {}
+    )
+    tours = record.child("finishedTours")
+    finished_tours = (
+        {
+            code: value
+            for code in list(tours.data.keys())[:PROFILE_MAP_CAP]
+            if _PROFILE_CODE.fullmatch(code) and (value := tours.boolean(code)) is not None
+        }
+        if tours
+        else {}
+    )
+    for child, name in (
+        (missions, "missions"),
+        (claimed, "missions.claimedAt"),
+        (tours, "finishedTours"),
+    ):
+        if child and len(list(child.data.keys())) > PROFILE_MAP_CAP:
+            record.problems.append(f"$.player.{name}: truncated to 64 entries")
     profile = PlayerProfile(
         id=player_id or "",
         username=_text(record, "username", "name"),
@@ -359,6 +401,15 @@ def normalize_player_lite(
         stats=profile_numeric_map(record.raw("stats")),
         activity_dates=dates or None,
         activity_date_lists=date_lists or None,
+        location_id=_ident(record, "location"),
+        company_id=_ident(record, "company"),
+        party_id=_ident(record, "party"),
+        updated_at=record.timestamp("updatedAt"),
+        military_unit_max_level_rewarded=record.integer("muMaxLevelRewarded"),
+        equipment_ids=_profile_ident_map(record, "equipment"),
+        mission_statistics=profile_numeric_map(record.raw("missions")),
+        mission_claimed_at=mission_dates or None,
+        finished_tours=finished_tours or None,
     )
     return profile, list(dict.fromkeys([*warnings, *record.problems]))
 
@@ -646,9 +697,14 @@ def normalize_work_offer(payload: object) -> WorkOffer:
     """Normalize one ``workOffer.getWorkOffersPaginated`` row."""
     record = record_of(payload, "$.work_offer")
     return WorkOffer(
+        id=_ident(record, "_id", "id"),
+        user_id=_ident(record, "user", "userId"),
+        initial_quantity=_number(record, "initialQuantity"),
+        created_at=record.timestamp("createdAt"),
+        updated_at=record.timestamp("updatedAt"),
         company_id=_ident(record, "company", "companyId"),
         region_id=_ident(record, "region", "regionId"),
-        quantity=_number(record, "quantity", "initialQuantity"),
+        quantity=_number(record, "quantity"),
         wage=_number(record, "wage"),
         wage_after_tax=_number(record, "wageAfterTax", "wage_after_tax"),
         citizenship=_text(record, "citizenship"),
@@ -884,6 +940,17 @@ def _collect_related_ids(source: Record) -> list[str]:
         "userId",
         "muIds",
         "regionIds",
+        "battle",
+        "war",
+        "mu",
+        "user",
+        "company",
+        "country",
+        "region",
+        "attackerCountry",
+        "defenderCountry",
+        "attackerRegion",
+        "defenderRegion",
     ):
         values = _id_list(source, key)
         if values is None:
@@ -900,7 +967,8 @@ def normalize_event(payload: object) -> EventSummary:
     record = record_of(payload, "$.event")
     data = record.child("data")
     event_type = canonical_enum(
-        _pick(record, "type") or (_pick(data, "type") if data else None), KNOWN_EVENT_TYPES
+        _pick(record, "type") or (_pick(data, "type") if data else None),
+        KNOWN_EVENT_TYPES | {code.lower() for code in EVENT_TYPES},
     )
     related: list[str] = []
     for source in (record, data):

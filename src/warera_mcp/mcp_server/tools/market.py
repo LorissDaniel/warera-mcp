@@ -17,6 +17,8 @@ from warera_mcp.mcp_server.responses import success_result
 from warera_mcp.mcp_server.tools.base import (
     READ_ONLY_ANNOTATIONS,
     SAFE_TEXT_PATTERN,
+    OpaqueCursor,
+    OptionalIdentifier,
     PlayerContextInput,
     player_context_credentials,
 )
@@ -41,15 +43,21 @@ GET_MARKET_PRICE_DESCRIPTION = (
 )
 
 SEARCH_MARKET_DESCRIPTION = (
-    "Inspect the visible buy/sell order book for one item, optionally estimating depth for one "
-    "side. These are the top visible orders only: not guaranteed liquidity and never a "
-    "full-market average. Order owners are deliberately omitted."
+    "Get visible bids (buy) and asks (sell) for one item. max_orders requests 1-100 orders "
+    "per side; returned bids sort highest-first and asks lowest-first. For a purchase use sell; "
+    "for sale proceeds use buy. depth_quantity estimates VWAP for the available quantity on one "
+    "side only: compare depth.quantity with the requested quantity to detect insufficient depth. "
+    "This is a bounded snapshot, not complete market coverage or guaranteed execution. Use "
+    "get_market_prices for multiple global quotes. Owners are omitted."
 )
 
 GET_WORK_MARKET_DESCRIPTION = (
-    "Get the wage benchmark for one item together with a small set of matching work offers. "
-    "Offers are filtered locally on the first upstream page. It reports wage facts only and does "
-    "not assess eligibility or suitability."
+    "Get an item wage benchmark and one page of work offers. item_code selects only the benchmark, "
+    "not the offers' product. Region, citizenship, user_id, level, energy and production are sent "
+    "upstream before pagination; this tool does not independently certify eligibility. Follow "
+    "page.next_cursor with identical filters. minimum_net_wage filters only the fetched page, "
+    "falling back to gross wage when net is absent; an empty page may have more matches later. "
+    "Wage units are as reported by the API, not an inferred hourly rate."
 )
 
 ItemCode = Annotated[
@@ -172,10 +180,19 @@ def register(mcp: FastMCP) -> None:
         item_code: ItemCode,
         side: Annotated[
             Literal["buy", "sell", "both"],
-            Field(default="both", description="Book side to return."),
+            Field(
+                default="both",
+                description="Existing buy bids, sell asks, or both; selling into bids uses buy.",
+            ),
         ] = "both",
         max_orders: Annotated[
-            int, Field(ge=1, le=10, default=5, description="Maximum price levels per side (1-10).")
+            int,
+            Field(
+                ge=1,
+                le=100,
+                default=5,
+                description="Upstream orders requested per side (1-100); fewer may exist.",
+            ),
         ] = 5,
         depth_quantity: Annotated[
             float | None,
@@ -183,7 +200,7 @@ def register(mcp: FastMCP) -> None:
                 default=None,
                 gt=0,
                 le=1_000_000,
-                description="Estimate visible depth for this quantity on a single side.",
+                description="Target quantity for VWAP; choose one side and check depth.quantity.",
             ),
         ] = None,
     ) -> CallToolResult:
@@ -222,7 +239,13 @@ def register(mcp: FastMCP) -> None:
         player_context: PlayerContextInput,
         item_code: ItemCode,
         limit: Annotated[
-            int, Field(ge=1, le=10, default=5, description="Maximum work offers to return (1-10).")
+            int,
+            Field(
+                ge=1,
+                le=10,
+                default=5,
+                description="Upstream offer page size (1-10), before the local wage filter.",
+            ),
         ] = 5,
         region_id: Annotated[
             str | None,
@@ -233,9 +256,49 @@ def register(mcp: FastMCP) -> None:
                 description="Filter offers by region id.",
             ),
         ] = None,
+        citizenship: Annotated[
+            OptionalIdentifier,
+            Field(
+                description="Citizenship country ID passed to the API; distinct from offer region."
+            ),
+        ] = None,
+        user_id: Annotated[
+            OptionalIdentifier,
+            Field(description="Filter offers by their userId; not username resolution."),
+        ] = None,
+        level: Annotated[
+            float | None,
+            Field(
+                ge=0,
+                le=1_000_000,
+                description="Player level for the API filter; not a wage threshold.",
+            ),
+        ] = None,
+        energy: Annotated[
+            float | None,
+            Field(
+                ge=0,
+                le=1_000_000,
+                description="Energy value for the API filter; zero is sent explicitly.",
+            ),
+        ] = None,
+        production: Annotated[
+            float | None,
+            Field(
+                ge=0,
+                le=1_000_000,
+                description="Production value for the API filter; zero is sent explicitly.",
+            ),
+        ] = None,
+        cursor: OpaqueCursor = None,
         minimum_net_wage: Annotated[
             float | None,
-            Field(default=None, gt=0, le=1_000_000, description="Minimum acceptable wage."),
+            Field(
+                default=None,
+                gt=0,
+                le=1_000_000,
+                description="Local net wage minimum in API units; gross fallback if net is absent.",
+            ),
         ] = None,
     ) -> CallToolResult:
         runtime = runtime_of(ctx)
@@ -245,6 +308,12 @@ def register(mcp: FastMCP) -> None:
             limit=limit,
             region_id=region_id,
             minimum_net_wage=minimum_net_wage,
+            citizenship=citizenship,
+            level=level,
+            energy=energy,
+            production=production,
+            user_id=user_id,
+            cursor=cursor,
             credentials=credentials,
             correlation_id=call_id(ctx),
         )

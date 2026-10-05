@@ -230,7 +230,9 @@ def test_event_type_filter_accepts_a_normal_request(settings: Settings, stub: Up
     stub.route("event.getEventsPaginated", {"items": [], "nextCursor": None})
 
     async def scenario(session: Any) -> None:
-        result = await session.call_tool("search_events", {"event_types": ["war", "peace"]})
+        result = await session.call_tool(
+            "search_events", {"event_types": ["warDeclared", "peaceMade"]}
+        )
         assert result.isError is False
 
     run_mcp(settings, stub, scenario)

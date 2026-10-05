@@ -61,6 +61,7 @@ EXPECTED_READ_ONLY_PROCEDURES = frozenset(
         "region.getRegionsObject",
         "region.getById",
         "user.getUserLite",
+        "user.getUserById",
         "search.searchUsers",
         "search.searchAnything",
         "user.getUsersByCountry",

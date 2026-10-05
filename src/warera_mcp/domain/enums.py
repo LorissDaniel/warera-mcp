@@ -51,6 +51,8 @@ class PlayerField(StrEnum):
     RANKINGS_SUMMARY = "rankings_summary"
     ACTIVITY = "activity"
     STATISTICS = "statistics"
+    MISSIONS = "missions"
+    EQUIPMENT = "equipment"
 
 
 def canonical_enum(value: object, allowed: Collection[str]) -> str | None:
@@ -72,3 +74,34 @@ __all__ = [
     "PlayerField",
     "canonical_enum",
 ]
+
+
+# Documented event filter codes; casing is significant upstream.
+EVENT_TYPES: tuple[str, ...] = (
+    "warDeclared",
+    "peace_agreement",
+    "battleOpened",
+    "battleEnded",
+    "newPresident",
+    "regionTransfer",
+    "peaceMade",
+    "countryMoneyTransfer",
+    "depositDiscovered",
+    "depositDepleted",
+    "systemRevolt",
+    "bankruptcy",
+    "allianceFormed",
+    "allianceBroken",
+    "allianceMemberJoined",
+    "allianceMemberLeft",
+    "allianceMemberExcluded",
+    "defensivePactFormed",
+    "defensivePactBroken",
+    "regionLiberated",
+    "strategicResourcesReshuffled",
+    "resistanceIncreased",
+    "resistanceDecreased",
+    "revolutionStarted",
+    "revolutionEnded",
+    "financedRevolt",
+)

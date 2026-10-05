@@ -27,6 +27,7 @@ from warera_mcp.warera.client import UpstreamRead
 from warera_mcp.warera.schemas import as_sequence, extract_ident
 
 PROFILE_PROCEDURE = "user.getUserLite"
+FULL_PROFILE_PROCEDURE = "user.getUserById"
 SEARCH_USERS_PROCEDURE = "search.searchUsers"
 
 #: Hard cap on candidate profiles fetched for one username lookup.
@@ -40,6 +41,8 @@ DEFAULT_PLAYER_FIELDS: tuple[PlayerField, ...] = (
     PlayerField.RANKINGS_SUMMARY,
     PlayerField.ACTIVITY,
     PlayerField.STATISTICS,
+    PlayerField.MISSIONS,
+    PlayerField.EQUIPMENT,
 )
 
 
@@ -86,6 +89,21 @@ def project_player_profile(
         leveling=profile.leveling if PlayerField.LEVEL in requested else None,
         stats=profile.stats if PlayerField.STATISTICS in requested else None,
         activity_dates=profile.activity_dates if PlayerField.ACTIVITY in requested else None,
+        location_id=profile.location_id if PlayerField.LOCATION in requested else None,
+        company_id=profile.company_id if PlayerField.PROFILE in requested else None,
+        party_id=profile.party_id if PlayerField.PROFILE in requested else None,
+        updated_at=profile.updated_at if PlayerField.PROFILE in requested else None,
+        military_unit_max_level_rewarded=profile.military_unit_max_level_rewarded
+        if PlayerField.PROFILE in requested
+        else None,
+        equipment_ids=profile.equipment_ids if PlayerField.EQUIPMENT in requested else None,
+        mission_statistics=profile.mission_statistics
+        if PlayerField.MISSIONS in requested
+        else None,
+        mission_claimed_at=profile.mission_claimed_at
+        if PlayerField.MISSIONS in requested
+        else None,
+        finished_tours=profile.finished_tours if PlayerField.MISSIONS in requested else None,
         activity_date_lists=profile.activity_date_lists
         if PlayerField.ACTIVITY in requested
         else None,
@@ -103,6 +121,21 @@ class PlayerResolver:
     def max_candidates(self) -> int:
         """Documented cap on candidate profiles fetched per username lookup."""
         return self._max_candidates
+
+    async def full_profile(
+        self,
+        user_id: str,
+        *,
+        credentials: PlayerRequestContext | None,
+        correlation_id: str | None,
+    ) -> UpstreamRead | app_errors.AppError:
+        return await self._caller.try_read(
+            "get_player",
+            FULL_PROFILE_PROCEDURE,
+            {"userId": user_id},
+            credentials=credentials,
+            correlation_id=correlation_id,
+        )
 
     async def resolve(
         self,
@@ -286,6 +319,7 @@ class PlayerService:
         user_id: str | None,
         username: str | None,
         fields: list[PlayerField] | None = None,
+        include_full_profile: bool = True,
         credentials: PlayerRequestContext | None = None,
         correlation_id: str | None = None,
     ) -> GetPlayerResult:
@@ -297,15 +331,52 @@ class PlayerService:
             operation="get_player",
         )
         warnings: list[str] = list(resolved.warnings)
+        profile = resolved.profile
+        reads = list(resolved.reads)
+        source: Literal["lite", "full"] = "lite"
+        partial = False
+        requested = set(fields or DEFAULT_PLAYER_FIELDS)
+        if include_full_profile and requested - {
+            PlayerField.LEVEL,
+            PlayerField.SKILLS_SUMMARY,
+            PlayerField.RANKINGS_SUMMARY,
+        }:
+            full = await self._resolver.full_profile(
+                profile.id,
+                credentials=credentials,
+                correlation_id=correlation_id,
+            )
+            if isinstance(full, UpstreamRead):
+                enriched, notes = normalize_player_lite(full.data)
+                if enriched.id != profile.id:
+                    partial = True
+                    warnings.append(
+                        "full profile identity was missing or mismatched; lite retained"
+                    )
+                else:
+                    reads.append(full)
+                    warnings.extend(notes)
+                    profile = PlayerProfile.model_validate(
+                        {
+                            **profile.model_dump(exclude_none=True),
+                            **enriched.model_dump(exclude_none=True),
+                        }
+                    )
+                    source = "full"
+            else:
+                partial = True
+                warnings.append("full public profile was unavailable; lite profile retained")
         if resolved.resolved_by == "username":
             warnings.append(
                 "resolved by exact username match against up to "
                 f"{self._resolver.max_candidates} search candidates"
             )
         return GetPlayerResult(
-            observed_at=resolved.observed_at,
+            observed_at=composite_observed_at(reads),
             warnings=warnings,
-            player=project_player_profile(resolved.profile, fields),
+            player=project_player_profile(profile, fields),
+            profile_source=source,
+            partial=partial,
             resolved_by=resolved.resolved_by,
         )
 

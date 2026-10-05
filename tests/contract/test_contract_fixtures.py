@@ -69,7 +69,9 @@ NORMALIZERS: dict[str, Callable[[Any], Any]] = {
         normalize_battle_ranking_entry(item, entity_type="mu") for item in data["items"]
     ],
     "upgrade.getUpgradeByTypeAndEntity": lambda data: normalize_upgrade(
-        data, mu_id="mu-anon-1", upgrade_type="headquarters",
+        data,
+        mu_id="mu-anon-1",
+        upgrade_type="headquarters",
     ),
     "inventory.getById": lambda data: quantity_map(data["items"]["basics"], None),
     "tradingOrder.getAllOrdersByOwner": lambda data: quantity_map(
@@ -83,6 +85,7 @@ NORMALIZERS: dict[str, Callable[[Any], Any]] = {
         key: normalize_region_detail(value, default_id=key)[0] for key, value in data.items()
     },
     "region.getById": lambda data: normalize_region_detail(data)[0],
+    "user.getUserById": lambda data: normalize_player_lite(data)[0],
     "user.getUserLite": lambda data: normalize_player_lite(data)[0],
     "search.searchUsers": lambda data: list(data),
     "search.searchAnything": lambda data: dict(data),
