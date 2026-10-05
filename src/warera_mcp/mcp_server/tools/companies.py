@@ -39,6 +39,40 @@ GET_COMPANY_OVERVIEW_DESCRIPTION = (
 
 def register(mcp: FastMCP) -> None:
     @mcp.tool(
+        name="get_recommended_regions",
+        description=(
+            "Get the game's ranked regions and production bonus components for an item. "
+            "Set include_deposit=false to request bonuses without deposits. Requires API key "
+            "or JWT; API key is preferred. Coverage is the game's recommendations, not all regions."
+        ),
+        annotations=READ_ONLY_ANNOTATIONS,
+    )
+    @tool_errors("get_recommended_regions")
+    async def get_recommended_regions(
+        ctx: ToolContext,
+        item_code: Annotated[str, Field(min_length=1, max_length=64, pattern=SAFE_TEXT_PATTERN)],
+        player_context: PlayerContextInput,
+        include_deposit: bool = True,
+        limit: Annotated[int, Field(ge=1, le=20)] = 5,
+        offset: Annotated[int, Field(ge=0, le=10_000)] = 0,
+    ) -> CallToolResult:
+        runtime = runtime_of(ctx)
+        result = await runtime.services.locations.get_recommended_regions(
+            item_code=item_code,
+            include_deposit=include_deposit,
+            limit=limit,
+            offset=offset,
+            credentials=player_context_credentials(player_context),
+            correlation_id=call_id(ctx),
+        )
+        return success_result(
+            result,
+            summary=f"{len(result.regions)} recommended regions for {item_code}",
+            operation="get_recommended_regions",
+            max_bytes=runtime.settings.max_output_bytes,
+        )
+
+    @mcp.tool(
         name="get_player_companies",
         description=GET_PLAYER_COMPANIES_DESCRIPTION,
         annotations=READ_ONLY_ANNOTATIONS,

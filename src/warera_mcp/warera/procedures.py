@@ -214,8 +214,12 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
         Domain.COMPANIES,
         auth=_API_KEY_OR_JWT,
         required=frozenset({"itemCode"}),
+        optional=frozenset({"includeDeposit"}),
         ttl=600,
-        evidence="[live] anonymous 401; API key and JWT each succeeded independently",
+        evidence=(
+            "[official client, live 2026-10-05] anonymous 401; API key and JWT each 200; "
+            "includeDeposit:false returns ranked bonus components with deposit terms zero"
+        ),
     ),
     # ------------------------------------------------------------------ work
     _p(

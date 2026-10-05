@@ -16,6 +16,7 @@ from warera_mcp.application.common import ServiceRuntime, UpstreamCaller
 from warera_mcp.application.companies import CompanyService
 from warera_mcp.application.events import EventService
 from warera_mcp.application.game_configuration import GameConfigurationService
+from warera_mcp.application.locations import LocationService
 from warera_mcp.application.market import MarketService
 from warera_mcp.application.players import PlayerResolver, PlayerService
 from warera_mcp.application.rankings import BattleRankingService
@@ -36,6 +37,7 @@ class Services:
     rankings: BattleRankingService
     catalog: ItemCatalog
     game_configuration: GameConfigurationService
+    locations: LocationService
 
 
 def build_services(runtime: ServiceRuntime) -> Services:
@@ -55,6 +57,7 @@ def build_services(runtime: ServiceRuntime) -> Services:
         rankings=BattleRankingService(caller, runtime),
         catalog=catalog,
         game_configuration=game_configuration,
+        locations=LocationService(caller),
     )
 
 
@@ -64,6 +67,7 @@ __all__ = [
     "CompanyService",
     "EventService",
     "ItemCatalog",
+    "LocationService",
     "MarketService",
     "PlayerResolver",
     "PlayerService",

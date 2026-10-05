@@ -124,6 +124,25 @@ class GetPlayerResult(ToolResult):
     resolved_by: Literal["user_id", "username"]
 
 
+class RecommendedRegion(DomainModel):
+    region_id: str
+    region_name: str | None = None
+    country_id: str | None = None
+    country_name: str | None = None
+    production_bonus: ProductionBonus
+    tax_fraction: float | None = None
+
+
+class RecommendedRegionsResult(ToolResult):
+    item_code: str
+    include_deposit: bool
+    regions: list[RecommendedRegion]
+    total_count: int
+    has_more: bool
+    source: Literal["game_recommendations"] = "game_recommendations"
+    partial: bool = False
+
+
 # ------------------------------------------------------------------------- companies
 class CompanySummary(DomainModel):
     """One owned company with optional production bonus enrichment."""
@@ -561,6 +580,8 @@ __all__ = [
     "ProductionBonus",
     "Recipe",
     "RecipeInput",
+    "RecommendedRegion",
+    "RecommendedRegionsResult",
     "RegionDetail",
     "RegionSummary",
     "RoundSummary",

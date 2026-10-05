@@ -38,7 +38,7 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 | Area | Tools |
 | --- | --- |
 | Players | `get_player`, `get_player_companies` |
-| Companies | `get_company_overview` |
+| Companies | `get_company_overview`, `get_recommended_regions` |
 | World | `get_country_overview`, `get_country_wars`, `get_region` |
 | Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
 | Battles | `search_battles`, `get_battle`, `get_battle_ranking` |
@@ -47,6 +47,15 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 | Official configuration | `get_game_rules`, `get_skill_progression`, `get_item_details`, `get_game_schedule` |
 
 Every tool is marked read-only. There is deliberately **no** generic "call any endpoint" tool.
+
+### Company locations
+
+`get_recommended_regions(item_code="iron", include_deposit=false)` asks the game for
+its ranked company locations excluding deposit bonuses. It exposes bonus components and
+taxes as fractions, plus region/country names when available. API key or JWT is required;
+API key is always selected when both are supplied. The ranking covers the recommendations
+returned by the game (currently five), not every world region. `offset` and `limit` page
+that returned list; deposit bonuses are never subtracted using an inferred formula.
 
 ### Articles
 
