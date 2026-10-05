@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Synthetic values using shapes verified against the official client and authorized live reads on 2026-10-05. No player data or credentials.",
+  "domain": "players",
+  "entries": [
+    {
+      "procedure": "inventory.getById",
+      "auth": "SINGLE",
+      "input": {"userId": "u-anon-1"},
+      "data": {
+        "_id": "inv-anon-1", "user": "u-anon-1", "money": 120,
+        "items": {"basics": {"iron": 40, "fish": 2}, "weapons": [], "equipments": []},
+        "market": {"basics": {"iron": 10}, "lockedMoney": 5, "weapons": [], "equipments": []}
+      }
+    },
+    {
+      "procedure": "tradingOrder.getAllOrdersByOwner",
+      "auth": "SINGLE",
+      "input": {"userId": "u-anon-1"},
+      "data": {
+        "allOrders": [], "buyOrders": [], "sellOrders": [],
+        "totalSellQuantities": {}, "totalBuyMoneyInvested": 0, "totalSellMoneyExpected": 0
+      }
+    }
+  ]
+}

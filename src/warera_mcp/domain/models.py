@@ -124,6 +124,23 @@ class GetPlayerResult(ToolResult):
     resolved_by: Literal["user_id", "username"]
 
 
+class PlayerResourcesResult(ToolResult):
+    """Available resources and market reservations, never inferred from wealth stats."""
+
+    player: PlayerRef
+    inventory_id: str
+    money_available: float | None = None
+    items_available: dict[str, float] | None = None
+    money_reserved: float | None = None
+    items_reserved_for_market: dict[str, float] | None = None
+    sell_quantities: dict[str, float] | None = None
+    money_in_buy_orders: float | None = None
+    expected_sales_proceeds: float | None = None
+    orders_observed_at: UtcDateTime | None = None
+    orders_requested: bool
+    partial: bool = False
+
+
 class RecommendedRegion(DomainModel):
     region_id: str
     region_name: str | None = None
@@ -577,6 +594,7 @@ __all__ = [
     "PageInfo",
     "PlayerProfile",
     "PlayerRef",
+    "PlayerResourcesResult",
     "ProductionBonus",
     "Recipe",
     "RecipeInput",

@@ -37,7 +37,7 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 
 | Area | Tools |
 | --- | --- |
-| Players | `get_player`, `get_player_companies` |
+| Players | `get_player`, `get_player_companies`, `get_player_resources` |
 | Companies | `get_company_overview`, `get_recommended_regions` |
 | World | `get_country_overview`, `get_country_wars`, `get_region` |
 | Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
@@ -48,7 +48,7 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 
 Every tool is marked read-only. There is deliberately **no** generic "call any endpoint" tool.
 
-### Company locations
+### Locations and player resources
 
 `get_recommended_regions(item_code="iron", include_deposit=false)` asks the game for
 its ranked company locations excluding deposit bonuses. It exposes bonus components and
@@ -56,6 +56,19 @@ taxes as fractions, plus region/country names when available. API key or JWT is 
 API key is always selected when both are supplied. The ranking covers the recommendations
 returned by the game (currently five), not every world region. `offset` and `limit` page
 that returned list; deposit bonuses are never subtracted using an inferred formula.
+
+`get_player_resources(user_id=..., item_codes=["iron", "steel", "fish"])` reads available
+money and basic materials from the player's inventory, market reservations, and owner-order
+aggregates including quantities for sale. Use an exact `username` instead of `user_id` when
+necessary. Set `include_orders=false` to skip the order read. Keep available materials,
+market reservations and sell quantities separate: reservations and orders can describe
+the same stock. Expected sales proceeds are not available money. Missing/malformed fields
+remain unknown; a valid sparse quantity map treats omitted requested codes as zero.
+
+Inventory and owner orders require JWT. On 2026-10-05, authorized live checks returned
+401 anonymously, 403 with API key, and 200 with JWT for both reads. These responses are
+never shared-cached. The resource tool exposes only selected numeric fields and the requested
+player identity, without equipment, managers or other raw inventory fields.
 
 Public operations always run anonymously, even if `player_context` contains credentials.
 Credentials are requested only after a tool reports missing authentication. Authentication
@@ -134,6 +147,7 @@ If you expose it beyond your own machine, turn on client authentication and set 
 ## Privacy & security
 
 - Public operations run anonymously and never forward supplied credentials.
+- Region recommendations prefer API key; inventory and owner orders require JWT.
 - Configuration tools always read anonymously and do not accept `player_context`.
 - If supplied, `player_context` carries the caller's own request-scoped `api_key` or `jwt`.
 - The project has no default or global WarEra credential.

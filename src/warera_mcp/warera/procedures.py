@@ -129,6 +129,26 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
         ttl=20,
         evidence="[L,D] public visible order book; 'top' count/order unspecified upstream",
     ),
+    _p(
+        "tradingOrder.getAllOrdersByOwner",
+        Domain.MARKET,
+        auth=AuthRequirement.of(CredentialKind.JWT),
+        required=frozenset({"userId"}),
+        evidence=(
+            "[official client, live 2026-10-05] GET owner aggregates; anonymous 401, "
+            "API key 403, JWT 200 for authorized account; no shared cache"
+        ),
+    ),
+    _p(
+        "inventory.getById",
+        Domain.PLAYERS,
+        auth=AuthRequirement.of(CredentialKind.JWT),
+        required=frozenset({"userId"}),
+        evidence=(
+            "[official client, live 2026-10-05] GET money/items.basics/market reservations; "
+            "anonymous 401, API key 403, JWT 200 for authorized account; no shared cache"
+        ),
+    ),
     # ----------------------------------------------------------------- world
     _p(
         "country.getAllCountries",

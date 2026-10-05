@@ -50,6 +50,8 @@ EXPECTED_READ_ONLY_PROCEDURES = frozenset(
     {
         "itemTrading.getPrices",
         "tradingOrder.getTopOrders",
+        "inventory.getById",
+        "tradingOrder.getAllOrdersByOwner",
         "country.getAllCountries",
         "country.getCountryById",
         "region.getRegionsObject",

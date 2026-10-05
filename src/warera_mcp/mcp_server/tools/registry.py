@@ -29,6 +29,7 @@ APPROVED_TOOL_NAMES: frozenset[str] = frozenset(
     {
         "get_player",
         "get_player_companies",
+        "get_player_resources",
         "get_recommended_regions",
         "get_company_overview",
         "get_country_overview",

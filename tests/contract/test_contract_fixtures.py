@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from warera_mcp.application.resources import quantity_map
 from warera_mcp.domain.article_normalization import normalize_article
 from warera_mcp.domain.models import DomainModel
 from warera_mcp.domain.normalization import (
@@ -59,6 +60,10 @@ FIXTURES = load_entries()
 
 #: procedure -> canonical projection used by the contract test.
 NORMALIZERS: dict[str, Callable[[Any], Any]] = {
+    "inventory.getById": lambda data: quantity_map(data["items"]["basics"], None),
+    "tradingOrder.getAllOrdersByOwner": lambda data: quantity_map(
+        data["totalSellQuantities"], None
+    ),
     "itemTrading.getPrices": normalize_prices,
     "tradingOrder.getTopOrders": lambda data: normalize_order_book(data, max_orders=10),
     "country.getAllCountries": lambda data: [normalize_country(item)[0] for item in data],
