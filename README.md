@@ -57,6 +57,11 @@ API key is always selected when both are supplied. The ranking covers the recomm
 returned by the game (currently five), not every world region. `offset` and `limit` page
 that returned list; deposit bonuses are never subtracted using an inferred formula.
 
+Public operations always run anonymously, even if `player_context` contains credentials.
+Credentials are requested only after a tool reports missing authentication. Authentication
+is selected independently for each endpoint; there is no automatic retry with a JWT after
+an API key is rejected. The project never loads credentials from another project's `.env`.
+
 ### Articles
 
 `search_articles` defaults to the latest published feed (`feed="last"`, `limit=10`,
@@ -128,7 +133,7 @@ If you expose it beyond your own machine, turn on client authentication and set 
 
 ## Privacy & security
 
-- The tools read WarEra data and current public operations can be called anonymously.
+- Public operations run anonymously and never forward supplied credentials.
 - Configuration tools always read anonymously and do not accept `player_context`.
 - If supplied, `player_context` carries the caller's own request-scoped `api_key` or `jwt`.
 - The project has no default or global WarEra credential.

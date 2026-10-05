@@ -288,14 +288,35 @@ def test_refused_anonymous_call_is_not_blamed_on_a_credential() -> None:
 
 
 def test_rejected_request_credential_end_to_end(settings: Settings, stub: UpstreamStub) -> None:
-    stub.route_status("itemTrading.getPrices", 401)
+    stub.route_status("company.getRecommendedRegionIdsByItemCode", 401)
 
     async def scenario(session: Any) -> None:
-        result = await session.call_tool("get_market_price", {"item_code": "iron"})
+        result = await session.call_tool("get_recommended_regions", {"item_code": "iron"})
         assert error_code(result) == "AUTHENTICATION_REJECTED"
         assert "UNKNOWN" not in result.content[0].text
 
     run_mcp(settings, stub, scenario)
+
+
+@pytest.mark.parametrize("error_envelope", [False, True])
+def test_public_refusal_ignores_supplied_credentials(
+    settings: Settings, stub: UpstreamStub, error_envelope: bool
+) -> None:
+    if error_envelope:
+        stub.route_envelope(
+            "itemTrading.getPrices",
+            {"error": {"data": {"code": "UNAUTHORIZED", "httpStatus": 401}}},
+        )
+    else:
+        stub.route_status("itemTrading.getPrices", 401)
+
+    async def scenario(session: Any) -> None:
+        result = await session.call_tool("get_market_price", {"item_code": "iron"})
+        assert error_code(result) == "UPSTREAM_SCHEMA_CHANGED"
+        assert result.structuredContent["error"]["action"] == "CONTACT_OPERATOR"
+
+    run_mcp(settings, stub, scenario)
+    assert "x-api-key" not in stub.headers_for("itemTrading.getPrices")[0]
 
 
 def test_rejected_credential_still_names_the_credential_kind() -> None:

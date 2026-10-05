@@ -102,7 +102,7 @@ async def test_deduplication_is_canonical_and_does_not_cache_later_reads() -> No
     assert len(api.requests) == 2
 
 
-async def test_public_api_key_and_jwt_calls_are_isolated() -> None:
+async def test_public_calls_ignore_credentials_and_share_anonymous_batches() -> None:
     api = RecordingAPI()
     contexts = [
         None,
@@ -119,12 +119,9 @@ async def test_public_api_key_and_jwt_calls_are_isolated() -> None:
             )
         )
         assert not client._batcher._groups
-    assert len(api.requests) == 4
+    assert len(api.requests) == 1
     assert {(r.headers.get("x-api-key"), r.headers.get("cookie")) for r in api.requests} == {
         (None, None),
-        ("key-a", None),
-        ("key-b", None),
-        (None, "jwt=a.b.c"),
     }
     assert all(r.url.params["batch"] == "1" for r in api.requests)
 

@@ -6,9 +6,12 @@ import json
 from typing import Any
 
 import pytest
-from tests.conftest import UpstreamStub, error_code, run_mcp
 
+from tests.conftest import UpstreamStub, error_code, run_mcp
+from warera_mcp.auth.credentials import PlayerRequestContext
 from warera_mcp.config import Settings
+from warera_mcp.warera.client import WareraQueryClient
+from warera_mcp.warera.procedures import PROCEDURES
 
 BOTH = {"api_key": "wae_test_read_key", "jwt": "header.payload.signature"}
 RECOMMENDATIONS = "company.getRecommendedRegionIdsByItemCode"
@@ -183,3 +186,29 @@ def test_invalid_recommendation_bonus_is_not_fabricated(
         assert error_code(result) == "UPSTREAM_SCHEMA_CHANGED"
 
     run_mcp(settings, stub, scenario)
+
+
+
+@pytest.mark.parametrize("batching_enabled", [True, False])
+async def test_every_public_procedure_ignores_both_supplied_credentials(
+    settings: Settings, stub: UpstreamStub, batching_enabled: bool
+) -> None:
+    client = WareraQueryClient(
+        settings.model_copy(update={"batching_enabled": batching_enabled}),
+        transport=stub.transport(),
+    )
+    try:
+        for spec in PROCEDURES.values():
+            if not spec.is_public:
+                continue
+            stub.route(spec.name, {})
+            await client.query(
+                spec,
+                dict.fromkeys(spec.required_params, "test"),
+                credentials=PlayerRequestContext(**BOTH),
+            )
+    finally:
+        await client.aclose()
+    assert stub.requests
+    for request in stub.requests:
+        assert "x-api-key" not in request.headers and "cookie" not in request.headers

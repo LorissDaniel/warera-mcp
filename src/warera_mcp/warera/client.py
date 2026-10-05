@@ -30,7 +30,7 @@ from email.utils import parsedate_to_datetime
 import httpx
 
 from warera_mcp.auth.credentials import PlayerRequestContext
-from warera_mcp.auth.requirements import CredentialKind, resolve_requirement
+from warera_mcp.auth.requirements import resolve_requirement
 from warera_mcp.cache.public_ttl import CacheOutcome, PublicTtlCache
 from warera_mcp.config import Settings
 from warera_mcp.observability.logging import StructuredLogger, make_logger
@@ -209,15 +209,7 @@ class WareraQueryClient:
         if resolution.selected is not None and credentials is not None:
             auth_headers = credentials.auth_headers(resolution.selected)
             auth_class = resolution.selected.value
-        elif credentials is not None:
-            # Public procedures may still be called on behalf of a user. Forward
-            # that request's credential without making it process-global.
-            if credentials.api_key is not None:
-                auth_headers = credentials.auth_headers(CredentialKind.API_KEY)
-                auth_class = CredentialKind.API_KEY.value
-            elif credentials.jwt is not None:
-                auth_headers = credentials.auth_headers(CredentialKind.JWT)
-                auth_class = CredentialKind.JWT.value
+        # Public reads remain anonymous even when the caller provides secrets.
 
         if spec.cacheable and self._cache is not None:
 

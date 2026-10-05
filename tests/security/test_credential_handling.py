@@ -170,8 +170,8 @@ async def test_public_operations_support_anonymous_api_key_and_jwt_calls(
 
     headers = stub.headers_for(spec.name)
     assert "x-api-key" not in headers[0] and "cookie" not in headers[0]
-    assert headers[1]["x-api-key"] == SECRET and "cookie" not in headers[1]
-    assert headers[2]["cookie"] == "jwt=header.payload.signature" and "x-api-key" not in headers[2]
+    assert "x-api-key" not in headers[1] and "cookie" not in headers[1]
+    assert "x-api-key" not in headers[2] and "cookie" not in headers[2]
 
 
 async def test_credentials_are_never_logged(
@@ -272,7 +272,7 @@ def test_v1_tools_accept_optional_request_credentials(
 
 def test_concurrent_mcp_users_send_only_their_own_api_keys(stub: UpstreamStub) -> None:
     """Concurrent tool calls must never cross-contaminate request credentials."""
-    stub.route("itemTrading.getPrices", {"iron": 1.0})
+    stub.route("company.getRecommendedRegionIdsByItemCode", [])
     settings = Settings(
         cache_enabled=False,
         max_retries=0,
@@ -285,11 +285,11 @@ def test_concurrent_mcp_users_send_only_their_own_api_keys(stub: UpstreamStub) -
         async with connect(server._mcp_server) as session:
             results = await asyncio.gather(
                 session.call_tool(
-                    "get_market_price",
+                    "get_recommended_regions",
                     {"item_code": "iron", "player_context": {"api_key": "wae_user_a"}},
                 ),
                 session.call_tool(
-                    "get_market_price",
+                    "get_recommended_regions",
                     {"item_code": "iron", "player_context": {"api_key": "wae_user_b"}},
                 ),
             )
@@ -297,7 +297,8 @@ def test_concurrent_mcp_users_send_only_their_own_api_keys(stub: UpstreamStub) -
 
     asyncio.run(scenario())
     sent_keys = sorted(
-        headers["x-api-key"] for headers in stub.headers_for("itemTrading.getPrices")
+        headers["x-api-key"]
+        for headers in stub.headers_for("company.getRecommendedRegionIdsByItemCode")
     )
     assert sent_keys == [
         "wae_user_a",

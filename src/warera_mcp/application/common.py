@@ -22,6 +22,7 @@ from typing import TypeVar
 
 from warera_mcp import errors as app_errors
 from warera_mcp.auth.credentials import CredentialError, PlayerRequestContext
+from warera_mcp.auth.requirements import CredentialKind
 from warera_mcp.auth.warnings import CLEARTEXT_CREDENTIAL_WARNING
 from warera_mcp.config import Settings
 from warera_mcp.domain.recipes import NullRecipeCatalog, RecipeCatalog
@@ -204,6 +205,13 @@ def map_upstream_error(
             "the WarEra response shape was not recognized", operation, procedure=procedure
         )
     if isinstance(error, WareraAPIError):
+        if (error.code or "").upper() in {"UNAUTHORIZED", "FORBIDDEN"} and not available:
+            return app_errors.upstream_schema_changed(
+                "WarEra refused an anonymous request that this server treats as public",
+                operation,
+                reason="anonymous_access_refused",
+                procedure=procedure,
+            )
         return _map_api_error(error, operation=operation, procedure=procedure)
     if isinstance(error, WareraHTTPError):
         if error.status_code == 404:
@@ -270,6 +278,15 @@ class UpstreamCaller:
     ) -> UpstreamRead:
         try:
             spec = get_procedure(procedure)
+            if spec.is_public:
+                credentials = None
+            elif credentials is not None:
+                selected = spec.auth.select(credentials.available_kinds())
+                if selected is not None:
+                    credentials = PlayerRequestContext(
+                        api_key=credentials.api_key if selected is CredentialKind.API_KEY else None,
+                        jwt=credentials.jwt if selected is CredentialKind.JWT else None,
+                    )
             return await self._runtime.client.query(
                 spec, params, credentials=credentials, correlation_id=correlation_id
             )
@@ -277,7 +294,10 @@ class UpstreamCaller:
             raise app_errors.invalid_input(str(error), operation) from None
         except WareraError as error:
             raise map_upstream_error(
-                error, operation=operation, procedure=procedure, credentials=credentials
+                error,
+                operation=operation,
+                procedure=procedure,
+                credentials=credentials,
             ) from None
 
     async def try_read(

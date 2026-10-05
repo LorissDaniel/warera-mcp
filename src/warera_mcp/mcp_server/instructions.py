@@ -74,7 +74,9 @@ How to use it:
   avoid the view-counting full-detail endpoint.
 - WarEra tools accept optional request-scoped credentials in `player_context`: an `api_key`
   or a `jwt`. Never invent, reuse, or request a project-wide/default credential. The
-  current public operations can also be called anonymously.
+  public operations are always called anonymously, even if credentials are provided.
+  Ask for credentials only after the requested tool reports missing authentication.
+  Never request JWT for a public tool or when API_KEY satisfies the requested operation.
 
 {CLEARTEXT_CREDENTIAL_WARNING}
 
