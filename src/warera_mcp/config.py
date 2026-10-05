@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     max_connections: int = Field(default=16, ge=1, le=256)
     max_keepalive_connections: int = Field(default=8, ge=0, le=256)
     max_concurrent_requests: int = Field(default=8, ge=1, le=128)
-    max_response_bytes: int = Field(default=2_000_000, ge=1024, le=64_000_000)
+    max_response_bytes: int = Field(default=8_000_000, ge=1024, le=64_000_000)
 
     # ---------------------------------------------------------------- batching
     batching_enabled: bool = True

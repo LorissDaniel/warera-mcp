@@ -373,3 +373,68 @@ def test_live_flat_points_and_battle_metadata_are_preserved() -> None:
     assert live.attacker_country_ids_with_orders == ["c1"]
     assert live.round_history == []
     assert normalize_live_battle(data).round_history is None
+
+
+def test_full_public_wealth_is_preserved_and_selectable(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    wealth = {
+        "money": 0,
+        "items": 12.5,
+        "companies": 200,
+        "equipments": 3,
+        "weapons": 1,
+        "total": 999,
+        "futureComponent": 7,
+    }
+    stub.route("user.getUserLite", PLAYER)
+    stub.route("user.getUserById", {**PLAYER, "stats": {"damagesCount": 51095, "wealth": wealth}})
+
+    async def scenario(session: Any) -> None:
+        result = await session.call_tool("get_player", {"user_id": "u1", "fields": ["statistics"]})
+        data = result.structuredContent
+        assert not result.isError and data["profile_source"] == "full"
+        assert data["player"]["wealth_breakdown"] == wealth
+        assert any(
+            "profile updated_at is not a wealth timestamp" in warning
+            for warning in data["warnings"]
+        )
+        assert data["player"]["stats"] == {"damagesCount": 51095}
+        assert "money_available" not in data["player"]
+        assert "items_available" not in data["player"]
+        profile = await session.call_tool("get_player", {"user_id": "u1", "fields": ["profile"]})
+        assert "wealth_breakdown" not in profile.structuredContent["player"]
+        assert not any(
+            "wealth timestamp" in warning for warning in profile.structuredContent["warnings"]
+        )
+        lite = await session.call_tool(
+            "get_player", {"user_id": "u1", "include_full_profile": False}
+        )
+        assert "wealth_breakdown" not in lite.structuredContent["player"]
+
+    run_mcp(settings, stub, scenario)
+    assert not stub.calls("inventory.getById") and not stub.calls(
+        "tradingOrder.getAllOrdersByOwner"
+    )
+    for procedure in ("user.getUserLite", "user.getUserById"):
+        assert all(
+            "cookie" not in headers and "x-api-key" not in headers
+            for headers in stub.headers_for(procedure)
+        )
+
+
+@pytest.mark.parametrize(
+    "wealth", [None, {}, "invalid", {"money": None, "items": "bad", "total": True}]
+)
+def test_missing_or_invalid_wealth_is_not_fabricated(wealth: Any) -> None:
+    profile, _ = normalize_player_lite({"_id": "u1", "stats": {"wealth": wealth}})
+    assert profile.wealth_breakdown is None
+
+
+def test_wealth_numeric_map_is_bounded_and_keeps_reported_zero() -> None:
+    profile, warnings = normalize_player_lite(
+        {"_id": "u1", "stats": {"wealth": {f"component{i}": i for i in range(70)}}}
+    )
+    assert len(profile.wealth_breakdown) == 64
+    assert profile.wealth_breakdown["component0"] == 0
+    assert any("stats.wealth" in warning and "truncated" in warning for warning in warnings)

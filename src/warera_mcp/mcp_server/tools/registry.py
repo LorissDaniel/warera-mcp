@@ -14,26 +14,50 @@ from mcp.server.fastmcp import FastMCP
 
 from warera_mcp.mcp_server.tools import (
     articles,
+    battle_details,
     battles,
     companies,
+    discovery,
+    equipment,
     events,
     game_configuration,
+    global_rankings,
+    governments,
     market,
+    mercenary_auctions,
     military_units,
     players,
     rankings,
+    transactions,
+    upgrades,
+    workforce,
     world,
 )
 
 #: The complete, reviewed tool inventory for this release.
 APPROVED_TOOL_NAMES: frozenset[str] = frozenset(
     {
+        "get_country_players",
+        "search_entities",
         "search_military_units",
         "get_military_unit",
         "get_military_unit_members",
         "get_military_unit_investments",
         "get_military_unit_ranking",
         "get_military_unit_upgrades",
+        "get_company_upgrades",
+        "get_region_upgrades",
+        "get_player_equipment",
+        "get_round",
+        "get_round_hits",
+        "get_battle_orders",
+        "get_battle_loot",
+        "search_mercenary_auctions",
+        "get_country_government",
+        "get_global_ranking",
+        "get_work_offer",
+        "get_workers",
+        "search_transactions",
         "get_player",
         "get_player_companies",
         "get_player_resources",
@@ -61,6 +85,7 @@ APPROVED_TOOL_NAMES: frozenset[str] = frozenset(
 )
 
 _TOOL_MODULES: tuple[ModuleType, ...] = (
+    discovery,
     players,
     companies,
     world,
@@ -69,6 +94,14 @@ _TOOL_MODULES: tuple[ModuleType, ...] = (
     battles,
     rankings,
     events,
+    battle_details,
+    equipment,
+    global_rankings,
+    governments,
+    mercenary_auctions,
+    transactions,
+    upgrades,
+    workforce,
     articles,
     game_configuration,
 )

@@ -44,7 +44,7 @@
     },
     {
       "procedure": "company.getRecommendedRegionIdsByItemCode",
-      "auth": "ANY_OF",
+      "auth": "SINGLE",
       "input": { "itemCode": "iron" },
       "data": [
         {

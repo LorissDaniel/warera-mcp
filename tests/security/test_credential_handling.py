@@ -25,7 +25,7 @@ from warera_mcp.config import Settings
 from warera_mcp.mcp_server.app import create_server
 from warera_mcp.mcp_server.errors import redactor_from_arguments, render_error, tool_errors
 from warera_mcp.warera.client import WareraQueryClient
-from warera_mcp.warera.errors import WareraServerError
+from warera_mcp.warera.errors import WareraMissingCredential, WareraServerError
 from warera_mcp.warera.procedures import get_procedure
 
 SECRET = "wae_SUPER_SECRET_VALUE_0123456789"
@@ -139,8 +139,15 @@ async def test_client_sends_exactly_one_credential_per_request(
         assert "cookie" not in headers
 
         jwt_only = PlayerRequestContext(jwt="header.payload.signature")
-        await client.query(spec, {"itemCode": "iron"}, credentials=jwt_only)
-        headers = stub.headers_for(spec.name)[-1]
+        with pytest.raises(WareraMissingCredential) as missing:
+            await client.query(spec, {"itemCode": "iron"}, credentials=jwt_only)
+        assert missing.value.required == (CredentialKind.API_KEY,)
+        assert len(stub.calls(spec.name)) == 1
+
+        inventory = get_procedure("inventory.getById")
+        stub.route(inventory.name, {"_id": "inv1", "user": "u1"})
+        await client.query(inventory, {"userId": "u1"}, credentials=both)
+        headers = stub.headers_for(inventory.name)[-1]
         assert headers["cookie"] == "jwt=header.payload.signature"
         assert "x-api-key" not in headers
     finally:

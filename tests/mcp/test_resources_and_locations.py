@@ -295,7 +295,6 @@ def test_missing_inventory_fields_are_unknown(settings: Settings, stub: Upstream
     [
         ({"api_key": BOTH["api_key"]}, "x-api-key"),
         (BOTH, "x-api-key"),
-        ({"jwt": BOTH["jwt"]}, "cookie"),
     ],
 )
 def test_recommendations_use_the_least_required_credential_and_upstream_deposit_toggle(
@@ -356,17 +355,20 @@ def test_recommendations_do_not_silently_downgrade_api_key_to_jwt(
     assert "cookie" not in stub.headers_for(RECOMMENDATIONS)[0]
 
 
-def test_recommendations_missing_auth_is_actionable(settings: Settings, stub: UpstreamStub) -> None:
+@pytest.mark.parametrize("context", [None, {"jwt": BOTH["jwt"]}])
+def test_recommendations_missing_key_is_actionable_and_never_uses_jwt(
+    settings: Settings, stub: UpstreamStub, context: dict[str, str] | None
+) -> None:
     async def scenario(session: Any) -> None:
         result = await session.call_tool(
             "get_recommended_regions",
             {
                 "item_code": "iron",
-                "player_context": None,
+                "player_context": context,
             },
         )
         assert error_code(result) == "MISSING_AUTHENTICATION"
-        assert result.structuredContent["error"]["required_auth"] == ["API_KEY", "JWT"]
+        assert result.structuredContent["error"]["required_auth"] == "API_KEY"
 
     run_mcp(settings, stub, scenario)
     assert not stub.requests

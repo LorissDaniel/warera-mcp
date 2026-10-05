@@ -1,0 +1,527 @@
+{
+  "version": 1,
+  "provenance": "live-capture",
+  "note": "Anonymized read-only observations on 2026-10-05; credentials never included.",
+  "entries": [
+    {
+      "procedure": "government.getByCountryId",
+      "auth": "PUBLIC",
+      "input": {
+        "countryId": "entity-anon-2"
+      },
+      "data": {
+        "dates": {
+          "announcementCreatedAts": [
+            "2026-08-07T12:37:40.779Z"
+          ],
+          "lastAnnouncementAt": "2026-10-01T21:41:18.082Z"
+        },
+        "_id": "entity-anon-1",
+        "country": "entity-anon-2",
+        "congressMembers": [
+          "entity-anon-3",
+          "entity-anon-4",
+          "entity-anon-5",
+          "entity-anon-6",
+          "entity-anon-7",
+          "entity-anon-8",
+          "entity-anon-9",
+          "entity-anon-10",
+          "entity-anon-11",
+          "entity-anon-12",
+          "entity-anon-13",
+          "entity-anon-14",
+          "entity-anon-15",
+          "entity-anon-16",
+          "entity-anon-17",
+          "entity-anon-18",
+          "entity-anon-19"
+        ],
+        "__v": 0,
+        "president": "entity-anon-20",
+        "vicePresident": "entity-anon-21",
+        "minOfDefense": "entity-anon-22",
+        "minOfEconomy": "entity-anon-23",
+        "minOfForeignAffairs": "entity-anon-24"
+      }
+    },
+    {
+      "procedure": "inventory.fetchCurrentEquipment",
+      "auth": "PUBLIC",
+      "input": {
+        "userId": "u-equipment-anon"
+      },
+      "data": {
+        "weapon": {
+          "_id": "entity-anon-25",
+          "code": "knife",
+          "skills": {
+            "attack": 30,
+            "criticalChance": 1
+          },
+          "state": 64,
+          "maxState": 100,
+          "quantity": 1,
+          "lastAcquisitionAt": "2026-10-04T00:16:50.838Z"
+        },
+        "chest": {
+          "_id": "entity-anon-26",
+          "type": "equipment",
+          "code": "chest1",
+          "skills": {
+            "armor": 3
+          },
+          "state": 88,
+          "maxState": 100,
+          "quantity": 1,
+          "lastAcquisitionAt": "2026-10-05T09:02:41.802Z"
+        },
+        "pants": {
+          "_id": "entity-anon-27",
+          "type": "equipment",
+          "code": "pants1",
+          "skills": {
+            "armor": 5
+          },
+          "state": 20,
+          "maxState": 100,
+          "quantity": 1,
+          "lastAcquisitionAt": "2026-10-02T06:01:53.789Z"
+        }
+      }
+    },
+    {
+      "procedure": "round.getById",
+      "auth": "PUBLIC",
+      "input": {
+        "roundId": "entity-anon-28"
+      },
+      "data": {
+        "_id": "entity-anon-28",
+        "battle": "entity-anon-29",
+        "number": 1,
+        "isActive": true,
+        "attacker": {
+          "country": "entity-anon-30",
+          "damages": 5892918,
+          "points": 174,
+          "hitCount": 1545
+        },
+        "defender": {
+          "country": "entity-anon-31",
+          "damages": 300159,
+          "points": 0,
+          "hitCount": 78
+        },
+        "live": {
+          "ticksCount": 137,
+          "actualTickPoints": 2,
+          "nextTickAt": "2026-10-05T16:47:00.230Z"
+        },
+        "createdAt": "2026-10-05T12:10:41.082Z",
+        "updatedAt": "2026-10-05T16:45:05.295Z",
+        "__v": 0
+      }
+    },
+    {
+      "procedure": "round.getLastHits",
+      "auth": "PUBLIC",
+      "input": {
+        "roundId": "round-anon"
+      },
+      "data": {
+        "attacker": [
+          {
+            "_id": "entity-anon-32",
+            "user": "entity-anon-33",
+            "damages": 177,
+            "mu": "entity-anon-34",
+            "isCriticalHit": false,
+            "isMissed": true,
+            "hitAt": "2026-10-05T16:29:58.983Z",
+            "weapon": {
+              "_id": "entity-anon-35",
+              "code": "knife",
+              "skills": {
+                "attack": 30,
+                "criticalChance": 5
+              },
+              "state": 70,
+              "maxState": 100,
+              "quantity": 1,
+              "lastAcquisitionAt": "2026-09-14T04:07:03.991Z"
+            },
+            "equipments": [
+              {
+                "_id": "entity-anon-36",
+                "type": "equipment",
+                "code": "helmet2",
+                "skills": {
+                  "criticalDamages": 20
+                },
+                "state": 75,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-10-04T04:09:05.440Z"
+              },
+              {
+                "_id": "entity-anon-37",
+                "type": "equipment",
+                "code": "chest2",
+                "skills": {
+                  "armor": 7
+                },
+                "state": 11,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-10-02T22:18:04.936Z"
+              },
+              {
+                "_id": "entity-anon-38",
+                "type": "equipment",
+                "code": "pants2",
+                "skills": {
+                  "armor": 7
+                },
+                "state": 17,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-10-01T07:06:56.943Z"
+              },
+              {
+                "_id": "entity-anon-39",
+                "type": "equipment",
+                "code": "boots2",
+                "skills": {
+                  "dodge": 8
+                },
+                "state": 72,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-10-01T07:07:04.170Z"
+              },
+              {
+                "_id": "entity-anon-40",
+                "type": "equipment",
+                "code": "gloves2",
+                "skills": {
+                  "precision": 7
+                },
+                "state": 18,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-10-01T07:06:56.941Z"
+              }
+            ],
+            "ammo": null
+          }
+        ],
+        "defender": [
+          {
+            "_id": "entity-anon-41",
+            "user": "entity-anon-42",
+            "damages": 218,
+            "mu": "entity-anon-43",
+            "isCriticalHit": false,
+            "isMissed": false,
+            "hitAt": "2026-10-05T16:43:53.392Z",
+            "weapon": {
+              "_id": "entity-anon-44",
+              "code": "gun",
+              "skills": {
+                "attack": 52,
+                "criticalChance": 8
+              },
+              "state": 88,
+              "maxState": 100,
+              "quantity": 1,
+              "lastAcquisitionAt": "2026-09-29T13:34:14.774Z"
+            },
+            "equipments": [
+              {
+                "_id": "entity-anon-45",
+                "type": "equipment",
+                "code": "helmet2",
+                "skills": {
+                  "criticalDamages": 17
+                },
+                "state": 95,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-10-01T04:24:03.733Z"
+              },
+              {
+                "_id": "entity-anon-46",
+                "type": "equipment",
+                "code": "chest2",
+                "skills": {
+                  "armor": 8
+                },
+                "state": 95,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-09-20T09:09:16.200Z"
+              },
+              {
+                "_id": "entity-anon-47",
+                "type": "equipment",
+                "code": "pants2",
+                "skills": {
+                  "armor": 6
+                },
+                "state": 95,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-09-20T09:09:09.591Z"
+              },
+              {
+                "_id": "entity-anon-48",
+                "type": "equipment",
+                "code": "boots2",
+                "skills": {
+                  "dodge": 8
+                },
+                "state": 95,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-09-16T08:45:56.503Z"
+              },
+              {
+                "_id": "entity-anon-49",
+                "type": "equipment",
+                "code": "gloves2",
+                "skills": {
+                  "precision": 6
+                },
+                "state": 95,
+                "maxState": 100,
+                "quantity": 1,
+                "lastAcquisitionAt": "2026-09-16T08:46:30.005Z"
+              }
+            ],
+            "ammo": "lightAmmo"
+          }
+        ]
+      }
+    },
+    {
+      "procedure": "battleOrder.getByBattle",
+      "auth": "PUBLIC",
+      "input": {
+        "battleId": "entity-anon-29",
+        "side": "attacker"
+      },
+      "data": [
+        {
+          "_id": "entity-anon-50",
+          "country": "entity-anon-30",
+          "user": "entity-anon-51",
+          "battle": "entity-anon-29",
+          "side": "attacker",
+          "sideCountry": "entity-anon-30",
+          "text": "",
+          "priority": "high",
+          "rank": 0,
+          "isActive": true,
+          "createdAt": "2026-10-05T12:10:56.371Z",
+          "updatedAt": "2026-10-05T14:31:52.515Z",
+          "__v": 0
+        },
+        {
+          "_id": "entity-anon-52",
+          "mu": "entity-anon-34",
+          "user": "entity-anon-51",
+          "battle": "entity-anon-29",
+          "side": "attacker",
+          "sideCountry": "entity-anon-30",
+          "text": "",
+          "priority": "high",
+          "rank": 0,
+          "isActive": true,
+          "createdAt": "2026-10-05T12:11:00.886Z",
+          "updatedAt": "2026-10-05T14:31:32.522Z",
+          "__v": 0
+        }
+      ]
+    },
+    {
+      "procedure": "battleLootSummary.getByBattleAndUser",
+      "auth": "PUBLIC",
+      "input": {
+        "battleId": "entity-anon-29",
+        "userId": "entity-anon-33"
+      },
+      "data": {
+        "_id": "entity-anon-53",
+        "battle": "entity-anon-29",
+        "user": "entity-anon-33",
+        "__v": 0,
+        "case1Count": 0,
+        "case2Count": 0,
+        "createdAt": "2026-10-05T12:25:38.882Z",
+        "hits": 25,
+        "poolLoot": [],
+        "totalDmg": 6886,
+        "totalMoneyFromBounty": 0,
+        "totalMoneyFromContract": 0,
+        "updatedAt": "2026-10-05T16:29:58.983Z"
+      }
+    },
+    {
+      "procedure": "mercenaryContractAuction.getPaginatedAuctions",
+      "auth": "PUBLIC",
+      "input": {
+        "limit": 1
+      },
+      "data": {
+        "items": [
+          {
+            "_id": "entity-anon-54",
+            "country": "entity-anon-55",
+            "createdBy": "entity-anon-56",
+            "battle": "entity-anon-57",
+            "forCountry": "entity-anon-55",
+            "forCountrySide": "attacker",
+            "minimumDamage": 3001000,
+            "budget": 240.08,
+            "initialPerK": 0.08,
+            "duration": 5,
+            "professionalsOnly": false,
+            "expiresAt": "2026-10-05T16:51:23.497Z",
+            "currentPerK": 0.08,
+            "currentPayout": 240.08,
+            "bids": [
+              {
+                "mu": "entity-anon-58",
+                "user": "entity-anon-59",
+                "perK": 0.08,
+                "payout": 240.08,
+                "bidAt": "2026-10-05T16:46:29.807Z"
+              }
+            ],
+            "status": "active",
+            "createdAt": "2026-10-05T16:46:23.501Z",
+            "updatedAt": "2026-10-05T16:46:29.808Z",
+            "__v": 0,
+            "currentWinner": "entity-anon-58",
+            "currentWinnerUser": "entity-anon-59"
+          }
+        ]
+      }
+    },
+    {
+      "procedure": "workOffer.getById",
+      "auth": "PUBLIC",
+      "input": {
+        "workOfferId": "entity-anon-60"
+      },
+      "data": {
+        "_id": "entity-anon-60",
+        "company": "entity-anon-61",
+        "user": "entity-anon-62",
+        "region": "entity-anon-63",
+        "quantity": 1,
+        "initialQuantity": 1,
+        "wage": 0.16,
+        "wageAfterTax": 0.154,
+        "minEnergy": 19,
+        "minProduction": 60,
+        "createdAt": "2026-09-29T15:02:08.463Z",
+        "updatedAt": "2026-10-05T13:22:42.276Z",
+        "__v": 0
+      }
+    },
+    {
+      "procedure": "workOffer.getWorkOfferByCompanyId",
+      "auth": "PUBLIC",
+      "input": {
+        "companyId": "entity-anon-61"
+      },
+      "data": {
+        "_id": "entity-anon-60",
+        "company": "entity-anon-61",
+        "user": "entity-anon-62",
+        "region": "entity-anon-63",
+        "quantity": 1,
+        "initialQuantity": 1,
+        "wage": 0.16,
+        "wageAfterTax": 0.154,
+        "minEnergy": 19,
+        "minProduction": 60,
+        "createdAt": "2026-09-29T15:02:08.463Z",
+        "updatedAt": "2026-10-05T13:22:42.276Z",
+        "__v": 0
+      }
+    },
+    {
+      "procedure": "worker.getWorkers",
+      "auth": "SINGLE",
+      "input": {
+        "companyId": "entity-anon-66"
+      },
+      "data": {
+        "type": "company",
+        "workers": [
+          {
+            "_id": "entity-anon-64",
+            "user": "entity-anon-65",
+            "company": "entity-anon-66",
+            "employer": "entity-anon-67",
+            "wage": 0.144,
+            "joinedAt": "2026-09-28T15:59:59.646Z",
+            "fidelity": 1,
+            "createdAt": "2026-09-28T15:59:59.646Z",
+            "updatedAt": "2026-10-04T11:53:22.759Z",
+            "__v": 0,
+            "lastFidelityIncreaseAt": "2026-09-28T16:00:04.602Z"
+          },
+          {
+            "_id": "entity-anon-68",
+            "user": "entity-anon-69",
+            "company": "entity-anon-66",
+            "employer": "entity-anon-67",
+            "wage": 0.155,
+            "joinedAt": "2026-10-04T11:53:29.815Z",
+            "lockedUntil": "2026-10-05T11:53:29.815Z",
+            "fidelity": 1,
+            "createdAt": "2026-10-04T11:53:29.816Z",
+            "updatedAt": "2026-10-04T11:53:33.638Z",
+            "__v": 0,
+            "lastFidelityIncreaseAt": "2026-10-04T11:53:33.638Z"
+          }
+        ]
+      }
+    },
+    {
+      "procedure": "worker.getTotalWorkersCount",
+      "auth": "SINGLE",
+      "input": {
+        "userId": "user-anon"
+      },
+      "data": 0
+    },
+    {
+      "procedure": "transaction.getPaginatedTransactions",
+      "auth": "SINGLE",
+      "input": {
+        "muId": "entity-anon-72",
+        "limit": 1
+      },
+      "data": {
+        "items": [
+          {
+            "_id": "entity-anon-70",
+            "money": 5,
+            "buyerId": "entity-anon-71",
+            "sellerMuId": "entity-anon-72",
+            "transactionType": "donation",
+            "createdAt": "2026-10-05T15:59:08.880Z",
+            "updatedAt": "2026-10-05T15:59:08.880Z",
+            "__v": 0
+          }
+        ],
+        "nextCursor": "v2.W3sidCI6ImRhdGUiLCJ2IjoiMjAyNi0xMC0wNVQxNTo1OTowOC44ODBaIn0seyJ0Ijoic3RyIiwidiI6IjZhYzNjOTRjZjAyMWIyZDdkMDc1ZWU4MCJ9XQ"
+      }
+    }
+  ]
+}

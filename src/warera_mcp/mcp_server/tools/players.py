@@ -21,12 +21,14 @@ from warera_mcp.mcp_server.tools.base import (
 )
 
 GET_PLAYER_DESCRIPTION = (
-    "Get public player facts: current skill summary/components, rankings, MU, activity and stats. "
-    "Use user_id or one exact, unambiguous username. By default add full-profile region/location, "
-    "company/party links, equipped-slot IDs and mission statistics/dates; fields selects groups. "
-    "include_full_profile=false uses lite only. profile_source identifies the source; full-read "
-    "failure retains lite with partial=true. Missing fields are unknown. Equipment IDs are not "
-    "inventory; public wealth is not spendable money. Use get_player_resources for balances."
+    "Get public player current skill summary/components, rankings, MU, activity and statistics. "
+    "Use user_id "
+    "or one exact username. Full profile adds region/location, company/party links, "
+    "equipped-slot IDs, missions and wealth_breakdown from stats.wealth. fields selects groups; "
+    "statistics includes wealth. include_full_profile=false uses lite only. "
+    "profile_source identifies the source; failed enrichment keeps lite with partial=true. "
+    "Missing values are unknown. Public wealth.money can differ from inventory money; "
+    "items is not per-material stock. Use get_player_resources for available balances/stock."
 )
 
 
@@ -103,7 +105,8 @@ def register(mcp: FastMCP) -> None:
                 max_length=10,
                 description="Groups: profile (MU/company/party), location "
                 "(country/region/location), "
-                "level, skills_summary, rankings_summary, activity, statistics, missions, "
+                "level, skills_summary, rankings_summary, activity, "
+                "statistics (stats/wealth_breakdown), missions, "
                 "equipment. "
                 "Omit for all; identity is always retained.",
             ),

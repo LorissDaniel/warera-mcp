@@ -5,9 +5,9 @@ project never infers that one credential substitutes for another, and it never
 ranks credentials by "strength". An operation is satisfied by exactly the
 credential kinds that were verified for it.
 
-For ``ANY_OF`` requirements a deterministic selection order is applied. The
-recommended-region operation accepts either credential; where both are present
-the API key is selected because it is the least-privilege game-read credential.
+For ``ANY_OF`` requirements a deterministic selection order is applied, preferring
+API key where an operation explicitly permits both. Current operations declare a
+single credential kind or public access; region recommendations permit API key only.
 """
 
 from __future__ import annotations

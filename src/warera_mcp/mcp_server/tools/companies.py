@@ -47,7 +47,7 @@ def register(mcp: FastMCP) -> None:
         description=(
             "Get the game's ranked regions and production bonus components for an item. "
             "Set include_deposit=false to request bonuses without deposits. Requires API key "
-            "or JWT; API key is preferred. Coverage is the game's recommendations, not all regions."
+            "only; JWT is not used. Coverage is the game's recommendations, not all regions."
         ),
         annotations=READ_ONLY_ANNOTATIONS,
     )

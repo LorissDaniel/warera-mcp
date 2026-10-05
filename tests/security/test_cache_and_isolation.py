@@ -18,7 +18,7 @@ from warera_mcp.config import Settings
 from warera_mcp.warera.client import WareraQueryClient
 from warera_mcp.warera.procedures import get_procedure
 
-ANY_OF_PROCEDURE = "company.getRecommendedRegionIdsByItemCode"
+API_KEY_PROCEDURE = "company.getRecommendedRegionIdsByItemCode"
 PUBLIC_PROCEDURE = "itemTrading.getPrices"
 
 KEY_A = "wae_player_a_key_000001"
@@ -45,11 +45,11 @@ async def test_public_reads_are_cached(settings: Settings, stub: UpstreamStub) -
     assert len(stub.calls(PUBLIC_PROCEDURE)) == 1
 
 
-async def test_any_of_reads_are_never_cached(settings: Settings, stub: UpstreamStub) -> None:
-    stub.route(ANY_OF_PROCEDURE, [])
+async def test_api_key_reads_are_never_cached(settings: Settings, stub: UpstreamStub) -> None:
+    stub.route(API_KEY_PROCEDURE, [])
     cache = PublicTtlCache(max_entries=8)
     client = make_client(settings, stub, cache)
-    spec = get_procedure(ANY_OF_PROCEDURE)
+    spec = get_procedure(API_KEY_PROCEDURE)
     credentials = PlayerRequestContext(api_key=KEY_A)
     try:
         first = await client.query(spec, {"itemCode": "iron"}, credentials=credentials)
@@ -59,7 +59,7 @@ async def test_any_of_reads_are_never_cached(settings: Settings, stub: UpstreamS
 
     assert first.cache_outcome is CacheOutcome.BYPASS
     assert second.cache_outcome is CacheOutcome.BYPASS
-    assert len(stub.calls(ANY_OF_PROCEDURE)) == 2
+    assert len(stub.calls(API_KEY_PROCEDURE)) == 2
     assert len(cache) == 0
     assert cache.stats.misses == 0
 
@@ -67,15 +67,15 @@ async def test_any_of_reads_are_never_cached(settings: Settings, stub: UpstreamS
 async def test_authenticated_response_does_not_populate_the_public_cache(
     settings: Settings, stub: UpstreamStub
 ) -> None:
-    stub.route(ANY_OF_PROCEDURE, [{"regionId": "r1"}])
+    stub.route(API_KEY_PROCEDURE, [{"regionId": "r1"}])
     stub.route(PUBLIC_PROCEDURE, {"iron": 1.0})
     cache = PublicTtlCache(max_entries=8)
     client = make_client(settings, stub, cache)
     try:
         await client.query(
-            get_procedure(ANY_OF_PROCEDURE),
+            get_procedure(API_KEY_PROCEDURE),
             {"itemCode": "iron"},
-            credentials=PlayerRequestContext(jwt="a.b.c"),
+            credentials=PlayerRequestContext(api_key=KEY_A),
         )
         assert len(cache) == 0
         await client.query(get_procedure(PUBLIC_PROCEDURE), {})
@@ -89,10 +89,10 @@ async def test_interleaved_player_credentials_do_not_leak(
     settings: Settings, stub: UpstreamStub, batching_enabled: bool
 ) -> None:
     settings = settings.model_copy(update={"batching_enabled": batching_enabled})
-    stub.route(ANY_OF_PROCEDURE, [])
+    stub.route(API_KEY_PROCEDURE, [])
     cache = PublicTtlCache(max_entries=8)
     client = make_client(settings, stub, cache)
-    spec = get_procedure(ANY_OF_PROCEDURE)
+    spec = get_procedure(API_KEY_PROCEDURE)
 
     async def run(key: str) -> None:
         await client.query(
@@ -108,7 +108,7 @@ async def test_interleaved_player_credentials_do_not_leak(
     finally:
         await client.aclose()
 
-    headers = stub.headers_for(ANY_OF_PROCEDURE)
+    headers = stub.headers_for(API_KEY_PROCEDURE)
     assert len(headers) == (4 if batching_enabled else 8)
     seen = [header.get("x-api-key") for header in headers]
     assert set(seen) == {KEY_A, KEY_B}
@@ -156,13 +156,13 @@ async def test_cached_reads_keep_their_original_observation_time(
 async def test_credentials_never_appear_in_cache_contents(
     settings: Settings, stub: UpstreamStub, key: str
 ) -> None:
-    stub.route(ANY_OF_PROCEDURE, [])
+    stub.route(API_KEY_PROCEDURE, [])
     stub.route(PUBLIC_PROCEDURE, {"iron": 1.0})
     cache = PublicTtlCache(max_entries=8)
     client = make_client(settings, stub, cache)
     try:
         await client.query(
-            get_procedure(ANY_OF_PROCEDURE),
+            get_procedure(API_KEY_PROCEDURE),
             {"itemCode": "iron"},
             credentials=PlayerRequestContext(api_key=key),
         )

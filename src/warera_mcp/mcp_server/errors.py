@@ -26,6 +26,7 @@ from warera_mcp.auth.credentials import CredentialError
 from warera_mcp.auth.redaction import SecretRedactor
 from warera_mcp.mcp_server.context import runtime_of
 from warera_mcp.observability.logging import make_logger
+from warera_mcp.warera.errors import WareraSchemaError
 
 F = TypeVar("F", bound=Callable[..., Awaitable[CallToolResult]])
 
@@ -116,6 +117,13 @@ def tool_errors(operation: str) -> Callable[[F], F]:
                     return await fn(*args, **kwargs)
             except app_errors.AppError as error:
                 return render_error(error, redactor=redactor)
+            except WareraSchemaError:
+                return render_error(
+                    app_errors.upstream_schema_changed(
+                        "WarEra returned an invalid game record", operation
+                    ),
+                    redactor=redactor,
+                )
             except CredentialError as error:
                 return render_error(map_credential_error(error, operation), redactor=redactor)
             except TimeoutError:

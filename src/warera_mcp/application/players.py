@@ -88,6 +88,7 @@ def project_player_profile(
         created_at=profile.created_at if PlayerField.PROFILE in requested else None,
         leveling=profile.leveling if PlayerField.LEVEL in requested else None,
         stats=profile.stats if PlayerField.STATISTICS in requested else None,
+        wealth_breakdown=profile.wealth_breakdown if PlayerField.STATISTICS in requested else None,
         activity_dates=profile.activity_dates if PlayerField.ACTIVITY in requested else None,
         location_id=profile.location_id if PlayerField.LOCATION in requested else None,
         company_id=profile.company_id if PlayerField.PROFILE in requested else None,
@@ -366,6 +367,12 @@ class PlayerService:
             else:
                 partial = True
                 warnings.append("full public profile was unavailable; lite profile retained")
+        if PlayerField.STATISTICS in requested and profile.wealth_breakdown is not None:
+            warnings.append(
+                "public wealth components do not establish available balances, item quantities, "
+                "calculation time or valuation formula; "
+                "profile updated_at is not a wealth timestamp"
+            )
         if resolved.resolved_by == "username":
             warnings.append(
                 "resolved by exact username match against up to "

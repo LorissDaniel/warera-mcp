@@ -35,6 +35,11 @@ class Domain(StrEnum):
     ARTICLES = "articles"
     MILITARY_UNITS = "military_units"
     CONFIGURATION = "configuration"
+    RANKINGS = "rankings"
+    GOVERNMENT = "government"
+    LABOR = "labor"
+    TRANSACTIONS = "transactions"
+    EQUIPMENT = "equipment"
 
 
 class ProcedureParamError(ValueError):
@@ -91,7 +96,6 @@ class ProcedureSpec:
 
 
 _PUBLIC: Final = AuthRequirement.public()
-_API_KEY_OR_JWT: Final = AuthRequirement.any_of(CredentialKind.API_KEY, CredentialKind.JWT)
 
 
 def _p(
@@ -241,13 +245,14 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     _p(
         "company.getRecommendedRegionIdsByItemCode",
         Domain.COMPANIES,
-        auth=_API_KEY_OR_JWT,
+        auth=AuthRequirement.of(CredentialKind.API_KEY),
         required=frozenset({"itemCode"}),
         optional=frozenset({"includeDeposit"}),
         ttl=600,
         evidence=(
             "[official client, live 2026-10-05] anonymous 401; API key and JWT each 200; "
-            "includeDeposit:false returns ranked bonus components with deposit terms zero"
+            "includeDeposit:false returns ranked bonus components with deposit terms zero; "
+            "integration permits API key only to minimize credential use"
         ),
     ),
     # ------------------------------------------------------------------ work
@@ -329,7 +334,7 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     ),
     _p(
         "ranking.getRanking",
-        Domain.MILITARY_UNITS,
+        Domain.RANKINGS,
         required=frozenset({"rankingType"}),
         ttl=60,
         evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU rankings",
@@ -337,12 +342,124 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     _p(
         "upgrade.getUpgradeByTypeAndEntity",
         Domain.MILITARY_UNITS,
-        required=frozenset({"upgradeType", "muId"}),
+        required=frozenset({"upgradeType"}),
+        optional=frozenset({"muId", "companyId", "regionId"}),
         ttl=60,
         evidence=(
             "[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] "
             "headquarters/dormitories detail, including disabled status"
         ),
+    ),
+    # ---------------------------------------------------- additional read capabilities
+    _p(
+        "government.getByCountryId",
+        Domain.GOVERNMENT,
+        required=frozenset(["countryId"]),
+        optional=frozenset([]),
+        ttl=300,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "inventory.fetchCurrentEquipment",
+        Domain.EQUIPMENT,
+        required=frozenset(["userId"]),
+        optional=frozenset([]),
+        ttl=30,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "round.getById",
+        Domain.BATTLES,
+        required=frozenset(["roundId"]),
+        optional=frozenset([]),
+        ttl=8,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "round.getLastHits",
+        Domain.BATTLES,
+        required=frozenset(["roundId"]),
+        optional=frozenset([]),
+        ttl=5,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "battleOrder.getByBattle",
+        Domain.BATTLES,
+        required=frozenset(["battleId", "side"]),
+        optional=frozenset([]),
+        ttl=15,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "battleLootSummary.getByBattleAndUser",
+        Domain.BATTLES,
+        required=frozenset(["battleId", "userId"]),
+        optional=frozenset([]),
+        ttl=15,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "mercenaryContractAuction.getPaginatedAuctions",
+        Domain.MILITARY_UNITS,
+        required=frozenset([]),
+        optional=frozenset(["countryId", "battleId", "status", "cursor", "limit"]),
+        ttl=10,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "workOffer.getById",
+        Domain.WORK,
+        required=frozenset(["workOfferId"]),
+        optional=frozenset([]),
+        ttl=30,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "workOffer.getWorkOfferByCompanyId",
+        Domain.WORK,
+        required=frozenset(["companyId"]),
+        optional=frozenset([]),
+        ttl=30,
+        evidence="[OpenAPI, live GET 2026-10-05] anonymous 200; reviewed game facts",
+    ),
+    _p(
+        "worker.getWorkers",
+        Domain.LABOR,
+        auth=AuthRequirement.of(CredentialKind.API_KEY),
+        required=frozenset([]),
+        optional=frozenset(["companyId", "userId"]),
+        ttl=None,
+        evidence="[OpenAPI, live GET 2026-10-05] API key 200; anonymous 401; no shared cache",
+    ),
+    _p(
+        "worker.getTotalWorkersCount",
+        Domain.LABOR,
+        auth=AuthRequirement.of(CredentialKind.API_KEY),
+        required=frozenset(["userId"]),
+        optional=frozenset([]),
+        ttl=None,
+        evidence="[OpenAPI, live GET 2026-10-05] API key 200; anonymous 401; no shared cache",
+    ),
+    _p(
+        "transaction.getPaginatedTransactions",
+        Domain.TRANSACTIONS,
+        auth=AuthRequirement.of(CredentialKind.API_KEY),
+        required=frozenset([]),
+        optional=frozenset(
+            [
+                "userId",
+                "muId",
+                "countryId",
+                "partyId",
+                "itemCode",
+                "transactionType",
+                "limit",
+                "cursor",
+            ]
+        ),
+        ttl=None,
+        evidence="[OpenAPI, live GET 2026-10-05] API key 200; anonymous 401; no shared cache",
     ),
     # ---------------------------------------------------------------- events
     _p(

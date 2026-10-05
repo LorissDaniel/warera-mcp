@@ -1,7 +1,7 @@
 """Fixture-driven contract tests for every procedure in the read-only registry.
 
-The fixtures under ``fixtures/`` are *documented shapes*, not live captures (their
-``provenance`` field says so). They pin the parsing contract and make schema drift
+The fixtures under ``fixtures/`` record documented shapes or anonymized live captures,
+identified by ``provenance``. They pin the parsing contract and make schema drift
 visible: if normalization starts producing different fields, or a registry entry is
 added without a fixture, these tests fail before a tool can ship.
 """
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,17 @@ import pytest
 
 from warera_mcp.application.resources import quantity_map
 from warera_mcp.domain.article_normalization import normalize_article
+from warera_mcp.domain.extended_normalization import (
+    battle_hit,
+    battle_order,
+    equipment_item,
+    government_snapshot,
+    loot_entry,
+    mercenary_auction,
+    object_rows,
+    transaction,
+    worker,
+)
 from warera_mcp.domain.military_unit_normalization import normalize_military_unit, normalize_upgrade
 from warera_mcp.domain.models import DomainModel
 from warera_mcp.domain.normalization import (
@@ -61,6 +73,32 @@ FIXTURES = load_entries()
 
 #: procedure -> canonical projection used by the contract test.
 NORMALIZERS: dict[str, Callable[[Any], Any]] = {
+    "government.getByCountryId": lambda data: government_snapshot(
+        data, country_id=data["country"], offset=0, limit=20, observed_at=datetime.now(UTC)
+    ),
+    "inventory.fetchCurrentEquipment": lambda data: [
+        equipment_item(v) for v in data.values() if v is not None
+    ],
+    "round.getById": lambda data: normalize_live_battle({"round": data}),
+    "round.getLastHits": lambda data: [
+        battle_hit(v, False) for values in data.values() for v in object_rows(values)
+    ],
+    "battleOrder.getByBattle": lambda data: [
+        battle_order(v, data[0]["battle"], data[0]["side"]) for v in object_rows(data)
+    ],
+    "battleLootSummary.getByBattleAndUser": lambda data: [
+        loot_entry(v) for v in object_rows(data["poolLoot"])
+    ],
+    "mercenaryContractAuction.getPaginatedAuctions": lambda data: [
+        mercenary_auction(v, True, 10) for v in object_rows(data["items"])
+    ],
+    "workOffer.getById": normalize_work_offer,
+    "workOffer.getWorkOfferByCompanyId": normalize_work_offer,
+    "worker.getWorkers": lambda data: [worker(v) for v in object_rows(data["workers"])],
+    "worker.getTotalWorkersCount": lambda data: data,
+    "transaction.getPaginatedTransactions": lambda data: [
+        transaction(v) for v in object_rows(data["items"])
+    ],
     "mu.getById": lambda data: normalize_military_unit(data)[0],
     "mu.getManyPaginated": lambda data: [
         normalize_military_unit(item)[0] for item in data["items"]

@@ -4,9 +4,9 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
-A small, **read-only** [MCP](https://modelcontextprotocol.io) server that lets an AI assistant
+A **read-only** [MCP](https://modelcontextprotocol.io) server that lets an AI assistant
 look things up in the browser game **WarEra** — players, companies, countries, markets,
-battles, military units, events and articles — and answer questions about them in plain language.
+battles, military units, equipment, governments, rankings, workers, transactions, events and articles — and answer questions about them in plain language.
 
 > ### ⚠️ Unofficial project
 > This is an **unofficial, community-made** project. It is **not affiliated with, endorsed by,
@@ -80,24 +80,29 @@ After updates, restart or reconnect the MCP server so the client refreshes its t
 
 | Area | Tools |
 | --- | --- |
-| Players | `get_player`, `get_player_companies`, `get_player_resources` |
-| Companies | `get_company_overview`, `get_recommended_regions` |
-| World | `get_country_overview`, `get_country_wars`, `get_region` |
+| Players | `get_player`, `get_player_companies`, `get_player_resources`, `get_player_equipment` |
+| Companies | `get_company_overview`, `get_recommended_regions`, `get_company_upgrades` |
+| Discovery | `get_country_players`, `search_entities` |
+| World | `get_country_overview`, `get_country_wars`, `get_region`, `get_region_upgrades`, `get_country_government` |
 | Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
-| Battles | `search_battles`, `get_battle`, `get_battle_ranking` |
+| Battles | `search_battles`, `get_battle`, `get_battle_ranking`, `get_round`, `get_round_hits`, `get_battle_orders`, `get_battle_loot` |
+| Mercenaries | `search_mercenary_auctions` |
+| Rankings | `get_global_ranking` |
+| Labor | `get_work_offer`, `get_workers` |
+| Transactions | `search_transactions` |
 | Military units | `search_military_units`, `get_military_unit`, `get_military_unit_members`, `get_military_unit_investments`, `get_military_unit_ranking`, `get_military_unit_upgrades` |
 | Events | `search_events` |
 | Articles | `search_articles`, `get_article` |
 | Official configuration | `get_game_rules`, `get_skill_progression`, `get_item_details`, `get_game_schedule` |
 
-Every tool is marked read-only. There is deliberately **no** generic "call any endpoint" tool.
+All 44 tools are marked read-only. There is deliberately **no** generic "call any endpoint" tool.
 
 ### Locations and player resources
 
 `get_recommended_regions(item_code="iron", include_deposit=false)` asks the game for
 its ranked company locations excluding deposit bonuses. It exposes bonus components and
-taxes as fractions, plus region/country names when available. API key or JWT is required;
-API key is always selected when both are supplied. The ranking covers the recommendations
+taxes as fractions, plus region/country names when available. API key is required;
+JWT is never used for this operation, even when supplied. The ranking covers the recommendations
 returned by the game (five in the verified responses), not every world region. `offset` and `limit` page
 that returned list; deposit bonuses are never subtracted using an inferred formula.
 
@@ -214,6 +219,26 @@ where applicable. They must not be combined blindly with modifier fractions.
 Future numeric skill components are kept in `additional_numeric_components`.
 `ranking_details` preserves reported value, rank and tier independently.
 
+`wealth_breakdown` preserves public `stats.wealth` components: `money`, `items`,
+`companies`, `equipments`, `weapons` and `total`, plus additional numeric components
+when reported. It belongs to the `statistics` field group and is capped at 64 entries.
+Values and the reported total are retained independently; the server does not recompute
+or reconcile them with the wealth ranking, which may reflect another snapshot.
+The `money` component is not certified as spendable inventory money, and `items`
+is an aggregate wealth component, not per-material quantities. Use `get_player_resources`
+for available money and materials; that inventory read continues to require JWT.
+Missing components remain unknown; reported zeros remain zero.
+On 2026-10-05, closely spaced live MCP reads with its public cache disabled found
+`stats.wealth.money` different from JWT `inventory.money`, while `market.lockedMoney`
+was zero and the public value stayed unchanged before/after the inventory read.
+This verifies that the two snapshots are not interchangeable; it does not establish
+the statistic's formula or refresh interval. The server does not adjust the public
+value into an inferred available balance. Direct requests with `no-cache` headers
+and a unique URL still returned the same public number with Cloudflare reporting
+`DYNAMIC`. This does not rule out game-side caching or stored statistics. The profile's
+`updated_at` is not a wealth calculation timestamp; no age or meaning beyond the
+reported component is inferred.
+
 `leveling`, `stats` and activity map keys retain upstream field codes. Missing
 facts are omitted, not replaced with zero. Map outputs are capped at 64 entries,
 activity date lists at 20, and all results retain the existing byte budget.
@@ -283,9 +308,109 @@ outside those compact summaries.
 These reads were verified anonymously on 2026-10-05 against OpenAPI 0.17.4-beta
 ([machine-readable specification](https://api2.warera.io/openapi.json)). They use
 GET, public TTL caching and the existing output-byte limit. MU management actions
-remain outside this read-only project. `transaction.getPaginatedTransactions`
-accepts `muId`, but returned 401 anonymously; authenticated transaction payloads
-were not verified and are not exposed by this integration.
+remain outside this read-only project. For MU transaction history use
+`search_transactions(military_unit_id=...)` with a request-scoped API key.
+
+### Public identifier discovery
+
+`get_country_players(country_id=..., limit=10)` returns player IDs and account
+creation timestamps, with upstream cursor pagination. Follow `page.next_cursor`
+with the same country. Account creation is not a country joining date or last
+activity; one page is not total or active population. Use `get_player` for details.
+
+`search_entities(search="Loris")` returns candidate IDs grouped by user, MU,
+country, region, party and alliance. Offset/limit page the API's retained matches
+locally per group; there is no upstream cursor or guarantee of complete search
+coverage. Missing groups remain unknown; explicit empty lists are known empty.
+It does not certify an exact identity. For an exact username use `get_player`.
+
+### Equipment, upgrades and government
+
+`get_player_equipment(user_id=...)` or `get_player_equipment(username="Loris")`
+returns publicly equipped item attributes, condition, skill bonuses and acquisition dates.
+Explicit null slots appear in `empty_slots`; omitted slots are unknown. This is the
+current loadout, not inventory or tradable stock. Slot maps are capped at 20 and skill
+maps at 64 entries.
+
+`get_company_upgrades` covers `storage`, `automatedEngine` and `breakRoom`;
+`get_region_upgrades` covers `bunker`, `base` and `pacificationCenter`. Omit
+`upgrade_types` for all three, or select a subset. Reported status/level,
+money/concrete/steel investments and activation/change dates remain separate.
+`absent_upgrade_types` means a successful null response; it does not infer a zero level.
+`unavailable_upgrade_types` identifies failed or invalid reads and sets `partial=true`.
+Use company/region tools for context and game configuration for supported upgrade costs/effects.
+
+`get_country_government(country_id=..., offset=0, limit=10)` returns president/minister
+user IDs, a locally paginated congress roster and reported activity dates. `congress_member_count`
+covers the returned roster; a missing roster is unknown. Follow the user IDs with
+`get_player`. These references describe reported roles, not independently verified permissions.
+
+### Rounds, orders, loot and mercenary contracts
+
+`get_round(round_id=...)` retrieves a specific round, including battle/country links,
+damage, points, hits, ticks and timestamps. `get_round_hits` pages the recent hit arrays
+with separate `snapshot_counts` and `has_more` per side. Its offset/limit are local,
+not historical API pagination. `include_equipment=true` adds weapon, ammo and up to
+10 equipment items as recorded at the hit. A reported missed hit can still have
+reported damage; neither is overwritten using an inferred formula.
+
+`get_battle_orders(battle_id=..., side="attacker")` returns a locally paginated
+order snapshot with country/MU/user links, priority and activity. The anonymous view
+may hide text and rank. Empty text with rank zero is exposed as
+`text_and_rank_visibility="restricted_in_anonymous_view"`, with text/rank unknown.
+It must not be interpreted as a public zero rank or permission to inspect private orders.
+
+`get_battle_loot(battle_id=..., user_id=...)` preserves reported case counts,
+hits, total damage, bounty/contract money and pool-loot numeric facts/references.
+A missing summary produces an error, not zero earnings. Pool loot is capped at
+20 entries; truncation sets `partial=true`. These are reported rewards, not a current balance.
+
+`search_mercenary_auctions(country_id=..., battle_id=..., status="won")` applies
+filters upstream. The schema lists supported status values; omitted status uses the
+API default and does not promise all historical statuses. Follow `page.next_cursor`
+with the same filters. Budget, minimum damage, current rates/payouts, winner IDs,
+battle/round links and expiry remain distinct. `include_bids=true` adds up to
+`bid_limit` bids per auction (maximum 20); `bid_count` covers the record and
+`bids_truncated` signals omissions. Duration/rate fields retain API units; no
+undocumented conversion or guaranteed final payout is inferred.
+
+### Global rankings
+
+`get_global_ranking(ranking_type="userDamages", offset=0, limit=10)` supports all
+36 documented user, country, alliance and MU ranking types. It preserves entity IDs,
+reported rank/value/tier, tier thresholds and country/MU links when supplied.
+There is no automatic profile fan-out; use linked tools as needed. Offsets page the
+snapshot returned by the API, not the entire world population; `snapshot_count`
+reports that snapshot's size. No historical week selector is documented. For MU name
+expansion use `get_military_unit_ranking`. Wealth rankings are not spendable inventory.
+
+### Work details and API-key transactions
+
+`get_work_offer(work_offer_id=...)` or `get_work_offer(company_id=...)` reads one
+public offer; supply exactly one identifier. It includes wage/net wage, offer quantities,
+minimum energy/production/level when supplied, linked entities and timestamps.
+Use `get_work_market` for filtered offer discovery.
+
+`get_workers` and `search_transactions` require `player_context={"api_key":"..."}`.
+They were verified with API key on 2026-10-05; neither requires JWT and neither uses
+shared caching. Credentials are never returned in the result.
+
+`get_workers(company_id=...)` lists company workers; `get_workers(user_id=...)`
+lists workers grouped across that user's employer company portfolio, not the user's
+own employment. Supply exactly one scope. Wage, fidelity, joining/locking dates and
+worker IDs support profile/company joins. Offset/limit page the returned snapshot
+locally. `snapshot_count` and the separately reported `reported_total_workers_count`
+are distinct observations; missing or failed counts remain unknown. Empty worker
+arrays are known empty lists. Company summaries are capped at 20, with explicit truncation.
+
+`search_transactions(user_id=..., military_unit_id=..., transaction_types=["donation"])
+also supports country, party and item-code filters. All filters apply upstream; omission
+leaves the API scope unfiltered. Follow `page.next_cursor` with identical filters.
+Transactions preserve reported money/quantity, timestamps, item attributes and separate
+buyer/seller user, MU, country and party IDs. Keep those API labels: for a donation,
+“buyer” is not automatically a goods buyer. Reported money is neither a unit price nor
+a signed cash flow; establish the transaction semantics before calculating totals.
+A page alone does not establish complete income, expenditure or historical coverage.
 
 ### Articles
 
@@ -327,7 +452,8 @@ Both exposed queries were checked anonymously against the
 ## Privacy & security
 
 - Public operations run anonymously and never forward supplied credentials.
-- Region recommendations prefer API key; inventory and owner orders require JWT.
+- Region recommendations, workers and transactions require API key.
+- Inventory and owner orders require JWT; current equipped items are public.
 - Configuration tools always read anonymously and do not accept `player_context`.
 - If supplied, `player_context` carries the caller's own request-scoped `api_key` or `jwt`.
 - The project has no default or global WarEra credential.
@@ -349,6 +475,11 @@ or deployment environment. Command-line options can override the bind host, port
 The upstream defaults to `https://api2.warera.io` and rejects another host unless
 `WARERA_MCP_ALLOW_CUSTOM_UPSTREAM=true` is explicitly enabled for local mocks. HTTP
 redirects are never followed.
+
+The upstream response cap defaults to 8,000,000 bytes to accommodate verified global
+ranking snapshots larger than 2 MB. The complete HTTP body (including a batch) is
+still bounded. Structured tool output remains capped at 262,144 bytes; use bounded
+pages and optional detail flags to control output size.
 
 Game rules, skill progression, item details and schedule data are fetched from WarEra's
 `gameConfig.getGameConfig` and `gameConfig.getDates` queries. When public caching is

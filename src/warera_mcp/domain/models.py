@@ -147,6 +147,11 @@ class PlayerProfile(DomainModel):
     created_at: UtcDateTime | None = None
     leveling: dict[str, float] | None = None
     stats: dict[str, float] | None = None
+    wealth_breakdown: dict[str, float] | None = Field(
+        default=None,
+        description="Reported public stats.wealth components, "
+        "not verified spendable balances or item quantities.",
+    )
     activity_dates: dict[str, UtcDateTime] | None = None
     activity_date_lists: dict[str, list[UtcDateTime]] | None = None
     location_id: str | None = None
@@ -483,6 +488,9 @@ class WorkOffer(DomainModel):
     updated_at: UtcDateTime | None = None
     wage: float | None = None
     wage_after_tax: float | None = None
+    minimum_energy: float | None = None
+    minimum_production: float | None = None
+    minimum_level: float | None = None
     citizenship: str | None = None
     text: str | None = None
 

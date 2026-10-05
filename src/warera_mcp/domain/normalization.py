@@ -353,6 +353,10 @@ def normalize_player_lite(
         mapping = as_mapping(record.raw(group))
         if mapping is not None and len(mapping) > PROFILE_MAP_CAP:
             record.problems.append(f"$.player.{group}: truncated to 64 entries")
+    statistics = record.child("stats")
+    wealth = statistics.child("wealth") if statistics else None
+    if wealth and len(wealth.data) > PROFILE_MAP_CAP:
+        record.problems.append("$.player.stats.wealth: truncated to 64 entries")
     skills, rankings, skill_values, ranking_values = _profile_details(record)
     dates, date_lists = _profile_dates(record)
     missions = record.child("missions")
@@ -399,6 +403,7 @@ def normalize_player_lite(
         created_at=record.timestamp("createdAt"),
         leveling=profile_numeric_map(record.raw("leveling")),
         stats=profile_numeric_map(record.raw("stats")),
+        wealth_breakdown=profile_numeric_map(wealth.data) if wealth else None,
         activity_dates=dates or None,
         activity_date_lists=date_lists or None,
         location_id=_ident(record, "location"),
@@ -707,6 +712,9 @@ def normalize_work_offer(payload: object) -> WorkOffer:
         quantity=_number(record, "quantity"),
         wage=_number(record, "wage"),
         wage_after_tax=_number(record, "wageAfterTax", "wage_after_tax"),
+        minimum_energy=record.num("minEnergy"),
+        minimum_production=record.num("minProduction"),
+        minimum_level=record.num("minLevel"),
         citizenship=_text(record, "citizenship"),
         text=sanitize_external_text(_pick(record, "text", "description")),
     )

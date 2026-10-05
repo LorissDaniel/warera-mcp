@@ -60,6 +60,18 @@ EXPECTED_READ_ONLY_PROCEDURES = frozenset(
         "country.getCountryById",
         "region.getRegionsObject",
         "region.getById",
+        "government.getByCountryId",
+        "inventory.fetchCurrentEquipment",
+        "round.getById",
+        "round.getLastHits",
+        "battleOrder.getByBattle",
+        "battleLootSummary.getByBattleAndUser",
+        "mercenaryContractAuction.getPaginatedAuctions",
+        "workOffer.getById",
+        "workOffer.getWorkOfferByCompanyId",
+        "worker.getWorkers",
+        "worker.getTotalWorkersCount",
+        "transaction.getPaginatedTransactions",
         "user.getUserLite",
         "user.getUserById",
         "search.searchUsers",
@@ -128,28 +140,28 @@ def test_configuration_procedures_are_parameterless_public_get_cache_entries() -
         config.validate_params({"skill": "production"})
 
 
-def test_recommended_region_operation_is_any_of_key_or_jwt() -> None:
+def test_recommended_region_operation_requires_api_key_only() -> None:
     spec = get_procedure("company.getRecommendedRegionIdsByItemCode")
-    assert spec.auth.mode == "ANY_OF"
-    assert set(spec.auth.required_kinds) == {CredentialKind.API_KEY, CredentialKind.JWT}
-    # API key is preferred when both are available (least privilege).
+    assert spec.auth.mode == "SINGLE"
+    assert spec.auth.required_kinds == (CredentialKind.API_KEY,)
     both = frozenset({CredentialKind.API_KEY, CredentialKind.JWT})
     assert resolve_requirement(spec.auth, both).selected is CredentialKind.API_KEY
-    assert (
-        resolve_requirement(spec.auth, frozenset({CredentialKind.JWT})).selected
-        is CredentialKind.JWT
-    )
+    jwt_only = resolve_requirement(spec.auth, frozenset({CredentialKind.JWT}))
+    assert not jwt_only.satisfied and jwt_only.selected is None
+    assert jwt_only.required == (CredentialKind.API_KEY,)
 
 
-def test_transaction_feed_is_not_registered() -> None:
-    assert "transaction.getPaginatedTransactions" not in READ_ONLY_PROCEDURES
+def test_transaction_feed_requires_api_key_without_shared_cache() -> None:
+    spec = get_procedure("transaction.getPaginatedTransactions")
+    assert spec.auth.kinds == (CredentialKind.API_KEY,)
+    assert not spec.cacheable
 
 
 def test_mu_global_ranking_is_registered_as_public_read() -> None:
     spec = get_procedure("ranking.getRanking")
     assert spec.is_public and spec.cacheable
     assert spec.required_params == frozenset({"rankingType"})
-    assert spec.domain.value == "military_units"
+    assert spec.domain.value == "rankings"
 
 
 def test_unknown_procedure_lookup_fails_closed() -> None:
