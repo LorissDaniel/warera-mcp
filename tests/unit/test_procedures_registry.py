@@ -48,6 +48,10 @@ MUTATION_MARKERS = (
 #: deliberate, reviewable act.
 EXPECTED_READ_ONLY_PROCEDURES = frozenset(
     {
+        "mu.getById",
+        "mu.getManyPaginated",
+        "ranking.getRanking",
+        "upgrade.getUpgradeByTypeAndEntity",
         "itemTrading.getPrices",
         "tradingOrder.getTopOrders",
         "inventory.getById",
@@ -140,8 +144,11 @@ def test_transaction_feed_is_not_registered() -> None:
     assert "transaction.getPaginatedTransactions" not in READ_ONLY_PROCEDURES
 
 
-def test_global_ranking_is_not_registered() -> None:
-    assert "ranking.getRanking" not in READ_ONLY_PROCEDURES
+def test_mu_global_ranking_is_registered_as_public_read() -> None:
+    spec = get_procedure("ranking.getRanking")
+    assert spec.is_public and spec.cacheable
+    assert spec.required_params == frozenset({"rankingType"})
+    assert spec.domain.value == "military_units"
 
 
 def test_unknown_procedure_lookup_fails_closed() -> None:

@@ -5,7 +5,7 @@
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
 A small, **read-only** [MCP](https://modelcontextprotocol.io) server that lets an AI assistant
-look things up in the browser game **WarEra** — players, companies, countries, markets, battles and
+look things up in the browser game **WarEra** — players, companies, countries, markets, battles, military units,
 events and articles — and answer questions about them in plain language.
 
 > ### ⚠️ Unofficial project
@@ -42,6 +42,7 @@ The server fetches the data, tidies it up, and hands the assistant a compact, si
 | World | `get_country_overview`, `get_country_wars`, `get_region` |
 | Market | `get_item_catalog`, `get_market_price`, `get_market_prices`, `search_market`, `get_work_market` |
 | Battles | `search_battles`, `get_battle`, `get_battle_ranking` |
+| Military units | `search_military_units`, `get_military_unit`, `get_military_unit_members`, `get_military_unit_investments`, `get_military_unit_ranking`, `get_military_unit_upgrades` |
 | Events | `search_events` |
 | Articles | `search_articles`, `get_article` |
 | Official configuration | `get_game_rules`, `get_skill_progression`, `get_item_details`, `get_game_schedule` |
@@ -74,6 +75,95 @@ Public operations always run anonymously, even if `player_context` contains cred
 Credentials are requested only after a tool reports missing authentication. Authentication
 is selected independently for each endpoint; there is no automatic retry with a JWT after
 an API key is rejected. The project never loads credentials from another project's `.env`.
+
+### Public player facts
+
+`get_player(user_id=...)` returns the public profile's MU id, military rank,
+active flag, creation date, numerical leveling/statistics and reported activity
+timestamps, alongside skills and rankings. `fields` can select `profile`,
+`location`, `level`, `skills_summary`, `rankings_summary`, `activity` and
+`statistics`; omitted fields selects all groups. The profile's `military_unit_id`
+links directly to the MU tools without a membership search.
+
+`skills` and `rankings` remain compact numerical maps, compatible with older
+scalar payloads. Nested skill summaries use reported `total`, falling back to
+`value` only when total is absent; they do not recompute the game's formula.
+`skill_details` additionally preserves level, current bar, base value, weapon,
+equipment, overflow, limited amount, total, total after soft cap, regeneration
+and prestige. Named percentage modifiers are exposed in `modifiers_fraction`
+(e.g. `militaryRankPercent:6.25` becomes `militaryRank:0.0625`). Skill totals/base
+values keep the game's skill-specific units, including percentage-point values
+where applicable. They must not be combined blindly with modifier fractions.
+Future numeric skill components are kept in `additional_numeric_components`.
+`ranking_details` preserves reported value, rank and tier independently.
+
+`leveling`, `stats` and activity map keys retain upstream field codes. Missing
+facts are omitted, not replaced with zero. Map outputs are capped at 64 entries,
+activity date lists at 20, and all results retain the existing byte budget.
+Activity timestamps are public observations, not a guarantee of future activity.
+No private inventory read or automatic company/MU/profile fan-out is triggered;
+the LLM chooses which linked tools and field groups its analysis requires.
+
+### Military units
+
+`search_military_units(search="Husaru", member_id=..., owner_id=...)` uses the
+[official MU API](https://api2.warera.io/docs/) to search by text, membership or
+ownership. All filters are optional; `owner_id` maps to upstream `userId`.
+The default limit is 10 (maximum 20). Continue with `page.next_cursor` and the
+same filters. The API has no documented country filter, so country-wide coverage
+must not be inferred from a single page.
+
+`get_military_unit(military_unit_id=...)` returns a compact dossier: identity,
+owner, location, member/role counts, level, monthly damage, mercenary reputation,
+active upgrade levels, manager/commander ids (up to 20 per role), last-announcement
+time and the six reported ranking snapshots. `roles_truncated` flags capped role
+lists; use the paginated roster with `include_non_members=true` for full coverage. Missing values
+remain unknown. Names are untrusted player content. Wealth is a ranking value,
+not a verified inventory balance. Full member lists, avatar URLs and per-user investment maps are excluded from the
+dossier; roster and investment tools expose the analytical data in bounded pages.
+
+`get_military_unit_members(military_unit_id=..., offset=0, limit=10)` pages the
+public member roster with owner, manager and commander flags. Missing role data
+remains unknown. Set `include_non_members=true` to include owner, managers and
+commanders outside the roster. `is_member` distinguishes membership from a
+management role, and `total_count` covers the selected set of identities.
+Use `get_player(user_id=...)` for individual profiles.
+
+`get_military_unit_investments(military_unit_id=..., offset=0, limit=10)` pages
+`investedMoneyByUsers`, including former members when reported. Amounts are
+reported monetary investments, not treasury or upgrade resource balances. A
+missing map returns `available=false` with unknown amounts/count; an explicitly
+empty map returns `available=true` and zero entries. Pagination does not infer
+investment history or fetch transaction records.
+`get_military_unit_upgrades` reads headquarters and dormitories separately,
+including disabled/pending status, investments and activation timestamps when
+available. A failed upgrade read preserves the other result with `partial=true`.
+The dossier's active levels do not include disabled upgrades.
+
+`get_military_unit_ranking(ranking_type="muWeeklyDamages", offset=0, limit=10)`
+also supports `muDamages`, `muTerrain`, `muWealth`, `muBounty` and `muReputation`.
+Offsets page only the snapshot returned by WarEra; `total_count` is that snapshot's
+size. Rosters and rankings may change between calls. Name lookups are limited to
+five units and the configured fan-out budget. For a battle's MU contributions,
+use `get_battle_ranking(battle_id=..., entity_type="mu")`, which now resolves
+MU names with the same bounded, best-effort policy. The ranking tool now accepts
+exactly one of `battle_id`, `war_id` or `round_id`, plus `metric="damage"`,
+`"points"` or `"money"`. It forwards `limit` and `cursor`, returns `page.next_cursor`
+and preserves the reported `item_count`. A legacy oversized response is capped
+locally with a warning. A positive count with no rows is marked `partial=true`,
+so it cannot be treated as zero participation. Battle dossiers/search results
+include `war_id`, current round ids and the MU/country ids with orders on each
+side. Round summaries/live snapshots preserve country ids, damage, points, hit
+counts, tick counters/points and timestamps from the current nested API shape,
+while accepting the older flat fields. Equipment and last-hit payloads remain
+outside those compact summaries.
+
+These reads were verified anonymously on 2026-10-05 against OpenAPI 0.17.4-beta
+([machine-readable specification](https://api2.warera.io/openapi.json)). They use
+GET, public TTL caching and the existing output-byte limit. MU management actions
+remain outside this read-only project. `transaction.getPaginatedTransactions`
+accepts `muId`, but returned 401 anonymously; authenticated transaction payloads
+were not verified and are not exposed by this integration.
 
 ### Articles
 

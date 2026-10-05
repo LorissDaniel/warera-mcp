@@ -13,6 +13,7 @@ Every function in this module follows the same contract:
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 from datetime import datetime
@@ -29,11 +30,13 @@ from warera_mcp.domain.models import (
     CompanySummary,
     CountryFacts,
     Deposit,
+    EntityRanking,
     EventSummary,
     OrderBookDepth,
     OrderBookLevel,
     PageInfo,
     PlayerProfile,
+    PlayerSkill,
     ProductionBonus,
     RegionDetail,
     RegionSummary,
@@ -190,6 +193,126 @@ def normalize_skill_map(record: Record, *keys: str) -> dict[str, float] | None:
     return _numeric_map(record, *keys)
 
 
+_PROFILE_CODE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
+PROFILE_MAP_CAP = 64
+
+
+def profile_numeric_map(payload: object) -> dict[str, float] | None:
+    mapping = as_mapping(payload)
+    if mapping is None:
+        return None
+    result: dict[str, float] = {}
+    for key, raw in list(mapping.items())[:PROFILE_MAP_CAP]:
+        number = coerce_float(raw)
+        if _PROFILE_CODE.fullmatch(key) and number is not None and math.isfinite(number):
+            result[key] = number
+    return result or None
+
+
+def _profile_details(
+    record: Record,
+) -> tuple[dict[str, PlayerSkill], dict[str, EntityRanking], dict[str, float], dict[str, float]]:
+    skills: dict[str, PlayerSkill] = {}
+    rankings: dict[str, EntityRanking] = {}
+    skill_values: dict[str, float] = {}
+    ranking_values: dict[str, float] = {}
+    skill_fields = {
+        "level": "level",
+        "current_bar_value": "currentBarValue",
+        "value": "value",
+        "weapon": "weapon",
+        "equipment": "equipment",
+        "overflow": "overflow",
+        "limited": "limited",
+        "total": "total",
+        "total_after_soft_cap": "totalAfterSoftCap",
+        "hourly_bar_regen": "hourlyBarRegen",
+        "prestige": "prestige",
+    }
+    for key, values in (("skills", skill_values), ("rankings", ranking_values)):
+        mapping = as_mapping(record.raw(key))
+        if mapping is None:
+            continue
+        if len(mapping) > PROFILE_MAP_CAP:
+            record.problems.append(f"$.player.{key}: truncated to 64 entries")
+        for code, raw in list(mapping.items())[:PROFILE_MAP_CAP]:
+            if not _PROFILE_CODE.fullmatch(code):
+                record.problems.append(f"$.player.{key}: invalid field name was omitted")
+                continue
+            number = coerce_float(raw)
+            if number is not None and math.isfinite(number):
+                values[code] = number
+                continue
+            child = as_mapping(raw)
+            if child is None:
+                record.problems.append(f"$.player.{key}: invalid entry was omitted")
+                continue
+            numeric = profile_numeric_map(child) or {}
+            if key == "skills":
+                skill = PlayerSkill(
+                    level=coerce_int(numeric.get("level")),
+                    prestige=coerce_int(numeric.get("prestige")),
+                    current_bar_value=numeric.get("currentBarValue"),
+                    value=numeric.get("value"),
+                    weapon=numeric.get("weapon"),
+                    equipment=numeric.get("equipment"),
+                    overflow=numeric.get("overflow"),
+                    limited=numeric.get("limited"),
+                    total=numeric.get("total"),
+                    total_after_soft_cap=numeric.get("totalAfterSoftCap"),
+                    hourly_bar_regen=numeric.get("hourlyBarRegen"),
+                    modifiers_fraction={
+                        wire.removesuffix("Percent"): value / 100
+                        for wire, value in numeric.items()
+                        if wire.endswith("Percent")
+                    },
+                    additional_numeric_components={
+                        wire: value
+                        for wire, value in numeric.items()
+                        if wire not in skill_fields.values() and not wire.endswith("Percent")
+                    },
+                )
+                skills[code] = skill
+                summary = skill.total if skill.total is not None else skill.value
+                if summary is not None:
+                    values[code] = summary
+            else:
+                row = record_of(child)
+                rank = coerce_int(numeric.get("rank"))
+                value = numeric.get("value")
+                rankings[code] = EntityRanking(value=value, rank=rank, tier=row.opt_str("tier"))
+                if value is not None:
+                    values[code] = value
+    return skills, rankings, skill_values, ranking_values
+
+
+def _profile_dates(record: Record) -> tuple[dict[str, datetime], dict[str, list[datetime]]]:
+    dates: dict[str, datetime] = {}
+    lists: dict[str, list[datetime]] = {}
+    child = record.child("dates")
+    if child is not None:
+        for key, raw in list(child.data.items())[:PROFILE_MAP_CAP]:
+            if not _PROFILE_CODE.fullmatch(key):
+                continue
+            values = as_sequence(raw)
+            if values is not None:
+                parsed_values: list[datetime] = []
+                for value in values[:20]:
+                    parsed, naive = parse_timestamp(value)
+                    if parsed is not None:
+                        parsed_values.append(parsed)
+                    if parsed is None or naive:
+                        record.problems.append("$.player.dates: invalid or timezone-less timestamp")
+                lists[key] = parsed_values
+                if len(values) > 20:
+                    record.problems.append("$.player.dates: date list truncated to 20 entries")
+            else:
+                timestamp = child.timestamp(key)
+                if timestamp is not None:
+                    dates[key] = timestamp
+    return dates, lists
+
+
 # ------------------------------------------------------------------------- players
 def normalize_player_lite(
     payload: object,
@@ -212,16 +335,32 @@ def normalize_player_lite(
         leveling = record.child("leveling")
         if leveling is not None:
             level = _integer(leveling, "level", "value")
+    for group in ("leveling", "stats", "dates"):
+        mapping = as_mapping(record.raw(group))
+        if mapping is not None and len(mapping) > PROFILE_MAP_CAP:
+            record.problems.append(f"$.player.{group}: truncated to 64 entries")
+    skills, rankings, skill_values, ranking_values = _profile_details(record)
+    dates, date_lists = _profile_dates(record)
     profile = PlayerProfile(
         id=player_id or "",
         username=_text(record, "username", "name"),
         level=level,
         country_id=_ident(record, "country", "countryId"),
         region_id=_ident(record, "region", "regionId"),
-        skills=_numeric_map(record, "skills"),
-        rankings=_numeric_map(record, "rankings"),
+        skills=skill_values or None,
+        rankings=ranking_values or None,
+        skill_details=skills or None,
+        ranking_details=rankings or None,
+        military_unit_id=_ident(record, "mu", "militaryUnit"),
+        military_rank=record.integer("militaryRank"),
+        is_active=record.boolean("isActive"),
+        created_at=record.timestamp("createdAt"),
+        leveling=profile_numeric_map(record.raw("leveling")),
+        stats=profile_numeric_map(record.raw("stats")),
+        activity_dates=dates or None,
+        activity_date_lists=date_lists or None,
     )
-    return profile, warnings
+    return profile, list(dict.fromkeys([*warnings, *record.problems]))
 
 
 # ----------------------------------------------------------------------- companies
@@ -531,19 +670,52 @@ def _normalize_side(
         country_name=country_names.get(country_id) if country_names and country_id else None,
         region_id=_ident(record, "region", "regionId"),
         damages=_number(record, "damages", "damage"),
-        won_rounds=_integer(record, "wonRounds", "won_rounds"),
+        won_rounds=_integer(record, "wonRoundsCount", "wonRounds", "won_rounds"),
+        hit_count=record.integer("hitCount"),
+        military_unit_ids_with_orders=(
+            record.strings("muOrders")[:20] if record.has("muOrders") else None
+        ),
+        country_ids_with_orders=record.strings("countryOrders")[:20]
+        if record.has("countryOrders")
+        else None,
+        orders_truncated=len(record.strings("muOrders")) > 20
+        or len(record.strings("countryOrders")) > 20,
     )
 
 
 def _normalize_round(record: Record) -> RoundSummary:
     points = record.child("points")
+    attacker = record.child("attacker")
+    defender = record.child("defender")
+    live = record.child("live")
     return RoundSummary(
         round_id=_ident(record, "_id", "id", "roundId"),
-        attacker_damages=_number(record, "attackerDamages", "attackerDamage"),
-        defender_damages=_number(record, "defenderDamages", "defenderDamage"),
-        attacker_points=_number(points, "attacker") if points else None,
-        defender_points=_number(points, "defender") if points else None,
-        next_tick_at=_timestamp(record, "nextTickAt", "next_tick_at"),
+        battle_id=_ident(record, "battle", "battleId"),
+        number=record.integer("number"),
+        is_active=record.boolean("isActive"),
+        attacker_country_id=attacker.ident("country") if attacker else None,
+        defender_country_id=defender.ident("country") if defender else None,
+        attacker_hit_count=attacker.integer("hitCount") if attacker else None,
+        defender_hit_count=defender.integer("hitCount") if defender else None,
+        ticks_count=live.integer("ticksCount") if live else record.integer("ticksCount"),
+        actual_tick_points=live.num("actualTickPoints") if live else record.num("actualTickPoints"),
+        created_at=record.timestamp("createdAt"),
+        updated_at=record.timestamp("updatedAt"),
+        attacker_damages=attacker.num("damages")
+        if attacker
+        else _number(record, "attackerDamages", "attackerDamage"),
+        defender_damages=defender.num("damages")
+        if defender
+        else _number(record, "defenderDamages", "defenderDamage"),
+        attacker_points=attacker.num("points")
+        if attacker
+        else (_number(points, "attacker") if points else record.num("attackerPoints")),
+        defender_points=defender.num("points")
+        if defender
+        else (_number(points, "defender") if points else record.num("defenderPoints")),
+        next_tick_at=live.timestamp("nextTickAt")
+        if live
+        else _timestamp(record, "nextTickAt", "next_tick_at"),
     )
 
 
@@ -565,11 +737,14 @@ def normalize_battle_summary(
             current_round = _ident(nested, "_id", "id")
     return BattleSummary(
         id=_battle_identity(record) or "",
-        type=canonical_enum(_pick(record, "type"), {"land", "sea", "air", "resistance", "revolt"}),
+        type=canonical_enum(
+            _pick(record, "type"), {"land", "sea", "air", "war", "resistance", "revolt"}
+        ),
         is_active=_flag(record, "isActive", "active"),
         attacker=_normalize_side(record.child("attacker"), country_names=country_names),
         defender=_normalize_side(record.child("defender"), country_names=country_names),
         current_round=current_round,
+        war_id=_ident(record, "war", "warId"),
         created_at=_timestamp(record, "createdAt", "startedAt"),
     )
 
@@ -598,36 +773,53 @@ def normalize_battle_detail(
     history: list[RoundSummary] | None = None
     if include_history:
         history = [
-            _normalize_round(child) for child in _child_records(record, "rounds", "roundHistory")
+            _normalize_round(child)
+            for child in _child_records(record, "roundsHistory", "roundHistory", "rounds")
         ]
 
     detail = BattleDetail(
         id=battle_id or "",
-        type=canonical_enum(_pick(record, "type"), {"land", "sea", "air", "resistance", "revolt"}),
+        type=canonical_enum(
+            _pick(record, "type"), {"land", "sea", "air", "war", "resistance", "revolt"}
+        ),
         is_active=_flag(record, "isActive", "active"),
         attacker=_normalize_side(record.child("attacker"), country_names=country_names),
         defender=_normalize_side(record.child("defender"), country_names=country_names),
         current_round=current_round,
+        war_id=_ident(record, "war", "warId"),
         rounds_to_win=_integer(record, "roundsToWin", "rounds_to_win"),
         created_at=_timestamp(record, "createdAt", "startedAt"),
+        updated_at=record.timestamp("updatedAt"),
         round_history=history,
+        round_ids=record.strings("rounds") if record.has("rounds") else None,
     )
     if detail.attacker is None or detail.defender is None:
         warnings.append("battle sides were only partially present in the upstream record")
     return detail, warnings
 
 
-def normalize_live_battle(payload: object) -> BattleLiveStatus:
+def normalize_live_battle(payload: object, *, include_history: bool = False) -> BattleLiveStatus:
     """Normalize ``battle.getLiveBattleData`` ``{battle, round}`` payloads."""
     record = record_of(payload, "$.live")
     round_record = record.child("round") or record.child("currentRound") or record
+    battle = record.child("battle")
     return BattleLiveStatus(
-        round_id=_ident(round_record, "_id", "id", "roundId"),
-        attacker_damages=_number(round_record, "attackerDamages", "attackerDamage"),
-        defender_damages=_number(round_record, "defenderDamages", "defenderDamage"),
-        attacker_points=_number(round_record.child("points") or round_record, "attacker"),
-        defender_points=_number(round_record.child("points") or round_record, "defender"),
-        next_tick_at=_timestamp(round_record, "nextTickAt", "next_tick_at"),
+        **_normalize_round(round_record).model_dump(),
+        battle_is_active=battle.boolean("isActive") if battle else None,
+        round_ids=battle.strings("roundIds") if battle and battle.has("roundIds") else None,
+        attacker_country_ids_with_orders=(
+            battle.strings("attackerCountryOrders")
+            if battle and battle.has("attackerCountryOrders")
+            else None
+        ),
+        defender_country_ids_with_orders=(
+            battle.strings("defenderCountryOrders")
+            if battle and battle.has("defenderCountryOrders")
+            else None
+        ),
+        round_history=[_normalize_round(child) for child in battle.objects("roundHistory")]
+        if battle and include_history and battle.has("roundHistory")
+        else None,
     )
 
 
@@ -639,7 +831,7 @@ def normalize_battle_ranking_entry(payload: object, *, entity_type: str) -> Batt
     """
     record = record_of(payload, "$.ranking_entry")
     entity_raw = record.raw(entity_type)
-    entity_id = extract_ident(entity_raw) or _ident(record, "entityId", "entity", "_id", "id")
+    entity_id = extract_ident(entity_raw) or _ident(record, "entityId", "entity")
     name: str | None = None
     if isinstance(entity_raw, Mapping):
         name = extract_name(entity_raw)

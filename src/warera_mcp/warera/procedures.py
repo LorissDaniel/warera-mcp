@@ -33,6 +33,7 @@ class Domain(StrEnum):
     BATTLES = "battles"
     EVENTS = "events"
     ARTICLES = "articles"
+    MILITARY_UNITS = "military_units"
     CONFIGURATION = "configuration"
 
 
@@ -281,10 +282,38 @@ _PROCEDURES: Final[tuple[ProcedureSpec, ...]] = (
     _p(
         "battleRanking.getRanking",
         Domain.BATTLES,
-        required=frozenset({"battleId", "type", "side"}),
-        optional=frozenset({"dataType"}),
+        required=frozenset({"type", "side", "dataType"}),
+        optional=frozenset({"battleId", "warId", "roundId", "limit", "cursor"}),
         ttl=10,
-        evidence="[live] all 18 type x side x dataType combinations succeeded anonymously",
+        evidence=(
+            "[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] "
+            "battle/round/war scopes, money metric and limit verified; "
+            "type x side x dataType combinations succeeded anonymously"
+        ),
+    ),
+    # --------------------------------------------------------- military units
+    _p(
+        "mu.getById", Domain.MILITARY_UNITS,
+        required=frozenset({"muId"}), ttl=60,
+        evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU dossier",
+    ),
+    _p(
+        "mu.getManyPaginated", Domain.MILITARY_UNITS,
+        optional=frozenset({"limit", "cursor", "memberId", "userId", "search"}), ttl=30,
+        evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU page",
+    ),
+    _p(
+        "ranking.getRanking", Domain.MILITARY_UNITS,
+        required=frozenset({"rankingType"}), ttl=60,
+        evidence="[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] MU rankings",
+    ),
+    _p(
+        "upgrade.getUpgradeByTypeAndEntity", Domain.MILITARY_UNITS,
+        required=frozenset({"upgradeType", "muId"}), ttl=60,
+        evidence=(
+            "[official OpenAPI 0.17.4-beta, anonymous GET 2026-10-05] "
+            "headquarters/dormitories detail, including disabled status"
+        ),
     ),
     # ---------------------------------------------------------------- events
     _p(

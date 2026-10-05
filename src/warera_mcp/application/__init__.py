@@ -18,6 +18,7 @@ from warera_mcp.application.events import EventService
 from warera_mcp.application.game_configuration import GameConfigurationService
 from warera_mcp.application.locations import LocationService
 from warera_mcp.application.market import MarketService
+from warera_mcp.application.military_units import MilitaryUnitService
 from warera_mcp.application.players import PlayerResolver, PlayerService
 from warera_mcp.application.rankings import BattleRankingService
 from warera_mcp.application.resources import ResourceService
@@ -28,6 +29,7 @@ from warera_mcp.application.world import WorldService
 class Services:
     """The complete set of semantic services exposed through MCP tools."""
 
+    military_units: MilitaryUnitService
     players: PlayerService
     companies: CompanyService
     world: WorldService
@@ -49,6 +51,7 @@ def build_services(runtime: ServiceRuntime) -> Services:
     game_configuration = GameConfigurationService(caller)
     resolver = PlayerResolver(caller, runtime)
     return Services(
+        military_units=MilitaryUnitService(caller, runtime),
         players=PlayerService(resolver),
         companies=CompanyService(caller, runtime, resolver, game_configuration),
         world=WorldService(caller, runtime),
@@ -72,6 +75,7 @@ __all__ = [
     "ItemCatalog",
     "LocationService",
     "MarketService",
+    "MilitaryUnitService",
     "PlayerResolver",
     "PlayerService",
     "ResourceService",

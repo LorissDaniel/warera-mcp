@@ -19,6 +19,7 @@ from warera_mcp.mcp_server.tools import (
     events,
     game_configuration,
     market,
+    military_units,
     players,
     rankings,
     world,
@@ -27,6 +28,12 @@ from warera_mcp.mcp_server.tools import (
 #: The complete, reviewed tool inventory for this release.
 APPROVED_TOOL_NAMES: frozenset[str] = frozenset(
     {
+        "search_military_units",
+        "get_military_unit",
+        "get_military_unit_members",
+        "get_military_unit_investments",
+        "get_military_unit_ranking",
+        "get_military_unit_upgrades",
         "get_player",
         "get_player_companies",
         "get_player_resources",
@@ -58,6 +65,7 @@ _TOOL_MODULES: tuple[ModuleType, ...] = (
     companies,
     world,
     market,
+    military_units,
     battles,
     rankings,
     events,

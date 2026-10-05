@@ -38,6 +38,8 @@ DEFAULT_PLAYER_FIELDS: tuple[PlayerField, ...] = (
     PlayerField.LEVEL,
     PlayerField.SKILLS_SUMMARY,
     PlayerField.RANKINGS_SUMMARY,
+    PlayerField.ACTIVITY,
+    PlayerField.STATISTICS,
 )
 
 
@@ -73,6 +75,20 @@ def project_player_profile(
         region_id=profile.region_id if PlayerField.LOCATION in requested else None,
         skills=profile.skills if PlayerField.SKILLS_SUMMARY in requested else None,
         rankings=profile.rankings if PlayerField.RANKINGS_SUMMARY in requested else None,
+        skill_details=profile.skill_details if PlayerField.SKILLS_SUMMARY in requested else None,
+        ranking_details=profile.ranking_details
+        if PlayerField.RANKINGS_SUMMARY in requested
+        else None,
+        military_unit_id=profile.military_unit_id if PlayerField.PROFILE in requested else None,
+        military_rank=profile.military_rank if PlayerField.PROFILE in requested else None,
+        is_active=profile.is_active if PlayerField.PROFILE in requested else None,
+        created_at=profile.created_at if PlayerField.PROFILE in requested else None,
+        leveling=profile.leveling if PlayerField.LEVEL in requested else None,
+        stats=profile.stats if PlayerField.STATISTICS in requested else None,
+        activity_dates=profile.activity_dates if PlayerField.ACTIVITY in requested else None,
+        activity_date_lists=profile.activity_date_lists
+        if PlayerField.ACTIVITY in requested
+        else None,
     )
 
 

@@ -17,6 +17,7 @@ import pytest
 
 from warera_mcp.application.resources import quantity_map
 from warera_mcp.domain.article_normalization import normalize_article
+from warera_mcp.domain.military_unit_normalization import normalize_military_unit, normalize_upgrade
 from warera_mcp.domain.models import DomainModel
 from warera_mcp.domain.normalization import (
     normalize_battle_detail,
@@ -60,6 +61,16 @@ FIXTURES = load_entries()
 
 #: procedure -> canonical projection used by the contract test.
 NORMALIZERS: dict[str, Callable[[Any], Any]] = {
+    "mu.getById": lambda data: normalize_military_unit(data)[0],
+    "mu.getManyPaginated": lambda data: [
+        normalize_military_unit(item)[0] for item in data["items"]
+    ],
+    "ranking.getRanking": lambda data: [
+        normalize_battle_ranking_entry(item, entity_type="mu") for item in data["items"]
+    ],
+    "upgrade.getUpgradeByTypeAndEntity": lambda data: normalize_upgrade(
+        data, mu_id="mu-anon-1", upgrade_type="headquarters",
+    ),
     "inventory.getById": lambda data: quantity_map(data["items"]["basics"], None),
     "tradingOrder.getAllOrdersByOwner": lambda data: quantity_map(
         data["totalSellQuantities"], None

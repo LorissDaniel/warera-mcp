@@ -105,6 +105,30 @@ class PlayerRef(DomainModel):
     username: str | None = None
 
 
+class PlayerSkill(DomainModel):
+    """Reported skill components; named percentage modifiers are fractions."""
+
+    level: int | None = None
+    current_bar_value: float | None = None
+    value: float | None = None
+    weapon: float | None = None
+    equipment: float | None = None
+    overflow: float | None = None
+    limited: float | None = None
+    total: float | None = None
+    total_after_soft_cap: float | None = None
+    hourly_bar_regen: float | None = None
+    prestige: int | None = None
+    modifiers_fraction: dict[str, float] = Field(default_factory=dict)
+    additional_numeric_components: dict[str, float] = Field(default_factory=dict)
+
+
+class EntityRanking(DomainModel):
+    value: float | None = None
+    rank: int | None = None
+    tier: str | None = None
+
+
 class PlayerProfile(DomainModel):
     """Public player profile projection."""
 
@@ -115,6 +139,16 @@ class PlayerProfile(DomainModel):
     region_id: str | None = None
     skills: dict[str, float] | None = None
     rankings: dict[str, float] | None = None
+    skill_details: dict[str, PlayerSkill] | None = None
+    ranking_details: dict[str, EntityRanking] | None = None
+    military_unit_id: str | None = None
+    military_rank: int | None = None
+    is_active: bool | None = None
+    created_at: UtcDateTime | None = None
+    leveling: dict[str, float] | None = None
+    stats: dict[str, float] | None = None
+    activity_dates: dict[str, UtcDateTime] | None = None
+    activity_date_lists: dict[str, list[UtcDateTime]] | None = None
 
 
 class GetPlayerResult(ToolResult):
@@ -325,6 +359,10 @@ class BattleSideRef(DomainModel):
     region_id: str | None = None
     damages: float | None = None
     won_rounds: int | None = None
+    hit_count: int | None = None
+    military_unit_ids_with_orders: list[str] | None = None
+    country_ids_with_orders: list[str] | None = None
+    orders_truncated: bool = False
 
 
 class BattleSummary(DomainModel):
@@ -335,6 +373,7 @@ class BattleSummary(DomainModel):
     is_active: bool | None = None
     attacker: BattleSideRef | None = None
     defender: BattleSideRef | None = None
+    war_id: str | None = None
     current_round: str | None = None
     created_at: UtcDateTime | None = None
 
@@ -440,6 +479,17 @@ class RoundSummary(DomainModel):
     """Current-round numeric summary."""
 
     round_id: str | None = None
+    battle_id: str | None = None
+    number: int | None = None
+    is_active: bool | None = None
+    attacker_country_id: str | None = None
+    defender_country_id: str | None = None
+    attacker_hit_count: int | None = None
+    defender_hit_count: int | None = None
+    ticks_count: int | None = None
+    actual_tick_points: float | None = None
+    created_at: UtcDateTime | None = None
+    updated_at: UtcDateTime | None = None
     attacker_damages: float | None = None
     defender_damages: float | None = None
     attacker_points: float | None = None
@@ -455,21 +505,23 @@ class BattleDetail(DomainModel):
     is_active: bool | None = None
     attacker: BattleSideRef | None = None
     defender: BattleSideRef | None = None
+    war_id: str | None = None
+    round_ids: list[str] | None = None
     current_round: RoundSummary | None = None
     rounds_to_win: int | None = None
     created_at: UtcDateTime | None = None
+    updated_at: UtcDateTime | None = None
     round_history: list[RoundSummary] | None = None
 
 
-class BattleLiveStatus(DomainModel):
-    """Volatile live snapshot, always timestamped."""
+class BattleLiveStatus(RoundSummary):
+    """Volatile round snapshot, always timestamped by its result envelope."""
 
-    round_id: str | None = None
-    attacker_damages: float | None = None
-    defender_damages: float | None = None
-    attacker_points: float | None = None
-    defender_points: float | None = None
-    next_tick_at: UtcDateTime | None = None
+    battle_is_active: bool | None = None
+    round_ids: list[str] | None = None
+    attacker_country_ids_with_orders: list[str] | None = None
+    defender_country_ids_with_orders: list[str] | None = None
+    round_history: list[RoundSummary] | None = None
 
 
 class SearchBattlesResult(ToolResult):
@@ -499,13 +551,121 @@ class BattleRankingEntry(DomainModel):
 class BattleRankingResult(ToolResult):
     """Output of ``get_battle_ranking``."""
 
-    battle_id: str
+    battle_id: str | None = None
+    war_id: str | None = None
+    round_id: str | None = None
     entity_type: str
     side: str
     metric: str
+    page: PageInfo = Field(default_factory=PageInfo)
+    partial: bool = False
     item_count: int
     entries: list[BattleRankingEntry]
     truncated: bool = False
+
+
+# -------------------------------------------------------------------- military units
+class MilitaryUnitRanking(EntityRanking):
+    pass
+
+
+class MilitaryUnit(DomainModel):
+    id: str
+    name: str | None = None
+    owner_id: str | None = None
+    country_id: str | None = None
+    region_id: str | None = None
+    member_count: int | None = None
+    manager_count: int | None = None
+    commander_count: int | None = None
+    manager_ids: list[str] | None = None
+    commander_ids: list[str] | None = None
+    roles_truncated: bool = False
+    last_announcement_at: UtcDateTime | None = None
+    level: int | None = None
+    monthly_damages: float | None = None
+    mercenary_reputation: float | None = None
+    active_upgrade_levels: dict[str, int] = Field(default_factory=dict)
+    rankings: dict[str, MilitaryUnitRanking] = Field(default_factory=dict)
+    created_at: UtcDateTime | None = None
+    updated_at: UtcDateTime | None = None
+
+
+class SearchMilitaryUnitsResult(ToolResult):
+    military_units: list[MilitaryUnit]
+    page: PageInfo
+
+
+class GetMilitaryUnitResult(ToolResult):
+    military_unit: MilitaryUnit
+
+
+class MilitaryUnitMember(DomainModel):
+    user_id: str
+    is_member: bool = True
+    is_owner: bool | None = None
+    is_manager: bool | None = None
+    is_commander: bool | None = None
+
+
+class MilitaryUnitMembersResult(ToolResult):
+    military_unit_id: str
+    members: list[MilitaryUnitMember]
+    total_count: int
+    offset: int
+    limit: int
+    has_more: bool
+
+
+class MilitaryUnitRankingEntry(MilitaryUnitRanking):
+    military_unit_id: str
+    name: str | None = None
+
+
+class MilitaryUnitRankingResult(ToolResult):
+    ranking_type: str
+    entries: list[MilitaryUnitRankingEntry]
+    total_count: int
+    offset: int
+    limit: int
+    has_more: bool
+
+
+class MilitaryUnitUpgrade(DomainModel):
+    id: str
+    military_unit_id: str
+    upgrade_type: str
+    level: int | None = None
+    status: str | None = None
+    invested_money: float | None = None
+    invested_concrete: float | None = None
+    invested_steel: float | None = None
+    status_changed_at: UtcDateTime | None = None
+    will_be_active_at: UtcDateTime | None = None
+    dependant_users_count: int | None = None
+    created_at: UtcDateTime | None = None
+    updated_at: UtcDateTime | None = None
+
+
+class MilitaryUnitInvestment(DomainModel):
+    user_id: str
+    invested_money: float
+
+
+class MilitaryUnitInvestmentsResult(ToolResult):
+    military_unit_id: str
+    available: bool
+    investments: list[MilitaryUnitInvestment] | None = None
+    total_count: int | None = None
+    offset: int
+    limit: int
+    has_more: bool
+
+
+class MilitaryUnitUpgradesResult(ToolResult):
+    military_unit_id: str
+    upgrades: list[MilitaryUnitUpgrade]
+    partial: bool = False
 
 
 # ---------------------------------------------------------------------------- events
@@ -576,17 +736,29 @@ __all__ = [
     "CountryRef",
     "Deposit",
     "DomainModel",
+    "EntityRanking",
     "EventSummary",
     "GetArticleResult",
     "GetBattleResult",
     "GetCompanyOverviewResult",
     "GetCountryOverviewResult",
     "GetCountryWarsResult",
+    "GetMilitaryUnitResult",
     "GetPlayerCompaniesResult",
     "GetPlayerResult",
     "GetRegionResult",
     "GetWorkMarketResult",
     "MarketPrice",
+    "MilitaryUnit",
+    "MilitaryUnitInvestment",
+    "MilitaryUnitInvestmentsResult",
+    "MilitaryUnitMember",
+    "MilitaryUnitMembersResult",
+    "MilitaryUnitRanking",
+    "MilitaryUnitRankingEntry",
+    "MilitaryUnitRankingResult",
+    "MilitaryUnitUpgrade",
+    "MilitaryUnitUpgradesResult",
     "OpponentCountry",
     "OrderBookDepth",
     "OrderBookLevel",
@@ -595,6 +767,7 @@ __all__ = [
     "PlayerProfile",
     "PlayerRef",
     "PlayerResourcesResult",
+    "PlayerSkill",
     "ProductionBonus",
     "Recipe",
     "RecipeInput",
@@ -606,6 +779,7 @@ __all__ = [
     "SearchArticlesResult",
     "SearchBattlesResult",
     "SearchEventsResult",
+    "SearchMilitaryUnitsResult",
     "ToolResult",
     "UtcDateTime",
     "WageStats",

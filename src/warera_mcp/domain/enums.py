@@ -38,6 +38,7 @@ class BattleMetric(StrEnum):
 
     DAMAGE = "damage"
     POINTS = "points"
+    MONEY = "money"
 
 
 class PlayerField(StrEnum):
@@ -48,6 +49,8 @@ class PlayerField(StrEnum):
     LEVEL = "level"
     SKILLS_SUMMARY = "skills_summary"
     RANKINGS_SUMMARY = "rankings_summary"
+    ACTIVITY = "activity"
+    STATISTICS = "statistics"
 
 
 def canonical_enum(value: object, allowed: Collection[str]) -> str | None:

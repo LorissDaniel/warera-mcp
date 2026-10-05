@@ -22,7 +22,9 @@ from warera_mcp.mcp_server.tools.base import (
 
 GET_PLAYER_DESCRIPTION = (
     "Get a player's public profile and selected public stats, including a current skill summary "
-    "when the public profile provides it. Use the WarEra user ID when available; username "
+    "and its components, ranking values/ranks/tiers, MU id, military rank, activity dates and "
+    "leveling/stats when reported. Summary maps use reported totals/values without formulas. "
+    "Use the WarEra user ID when available; username "
     "resolution requires an exact, unambiguous match and otherwise asks you to disambiguate. "
     "Does not return private inventory or balance; use get_player_resources for those."
 )

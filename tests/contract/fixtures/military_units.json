@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "provenance": "documented-shape",
+  "note": "Anonymized shapes verified against official OpenAPI 0.17.4-beta and anonymous GET on 2026-10-05.",
+  "domain": "military_units",
+  "entries": [
+    {
+      "procedure": "mu.getById",
+      "auth": "PUBLIC",
+      "input": {
+        "muId": "mu-anon-1"
+      },
+      "data": {
+        "_id": "mu-anon-1",
+        "name": "Example MU",
+        "user": "u-anon-1",
+        "members": [
+          "u-anon-1"
+        ],
+        "roles": {
+          "managers": [],
+          "commanders": [
+            "u-anon-1"
+          ]
+        },
+        "leveling": {
+          "level": 1,
+          "monthlyDamages": 0
+        },
+        "activeUpgradeLevels": {
+          "dormitories": 1
+        },
+        "rankings": {
+          "muDamages": {
+            "value": 100,
+            "rank": 2,
+            "tier": "gold"
+          }
+        }
+      }
+    },
+    {
+      "procedure": "mu.getManyPaginated",
+      "auth": "PUBLIC",
+      "input": {
+        "limit": 1
+      },
+      "data": {
+        "items": [
+          {
+            "_id": "mu-anon-1",
+            "name": "Example MU",
+            "user": "u-anon-1",
+            "members": [
+              "u-anon-1"
+            ],
+            "roles": {
+              "managers": [],
+              "commanders": [
+                "u-anon-1"
+              ]
+            },
+            "leveling": {
+              "level": 1,
+              "monthlyDamages": 0
+            },
+            "activeUpgradeLevels": {
+              "dormitories": 1
+            },
+            "rankings": {
+              "muDamages": {
+                "value": 100,
+                "rank": 2,
+                "tier": "gold"
+              }
+            }
+          }
+        ],
+        "nextCursor": "next"
+      }
+    },
+    {
+      "procedure": "ranking.getRanking",
+      "auth": "PUBLIC",
+      "input": {
+        "rankingType": "muDamages"
+      },
+      "data": {
+        "items": [
+          {
+            "mu": "mu-anon-1",
+            "rank": 2,
+            "value": 100,
+            "tier": "gold"
+          }
+        ]
+      }
+    },
+    {
+      "procedure": "upgrade.getUpgradeByTypeAndEntity",
+      "auth": "PUBLIC",
+      "input": {
+        "muId": "mu-anon-1",
+        "upgradeType": "headquarters"
+      },
+      "data": {
+        "_id": "upgrade-anon-1",
+        "mu": "mu-anon-1",
+        "upgradeType": "headquarters",
+        "level": 4,
+        "status": "disabled",
+        "investedSteel": 1100
+      }
+    }
+  ]
+}

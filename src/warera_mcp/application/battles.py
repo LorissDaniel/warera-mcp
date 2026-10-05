@@ -182,7 +182,7 @@ class BattleService:
 
         if include_live_status:
             if isinstance(live_outcome, UpstreamRead):
-                live = normalize_live_battle(live_outcome.data)
+                live = normalize_live_battle(live_outcome.data, include_history=include_history)
                 reads.append(live_outcome)
             else:
                 partial = True
