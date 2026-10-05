@@ -18,7 +18,7 @@ from warera_mcp.application.common import (
     bounded_try_reads,
     composite_observed_at,
 )
-from warera_mcp.application.game_configuration import GameConfigurationService
+from warera_mcp.application.game_configuration import GameConfigurationService, is_raw_material
 from warera_mcp.application.players import PlayerResolver
 from warera_mcp.auth.credentials import PlayerRequestContext
 from warera_mcp.domain.models import (
@@ -247,7 +247,7 @@ class CompanyService:
                     recipe, recipe_read = await self._game_configuration.get_recipe(
                         detail.item_code, correlation_id
                     )
-                    if recipe is not None:
+                    if recipe is not None or is_raw_material(recipe_read.data, detail.item_code):
                         reads.append(recipe_read)
                     elif "official recipe was unavailable" not in warnings:
                         warnings.append("official recipe was unavailable")

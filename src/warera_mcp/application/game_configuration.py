@@ -440,7 +440,13 @@ class GameConfigurationService:
         if "productionPoints" in raw:
             points = finite_number(raw["productionPoints"])
             needs = as_mapping(raw.get("productionNeeds"))
-            if points is not None and points >= 0 and needs is not None:
+            if points is not None and points >= 0:
+                item["production"] = {"production_points_per_unit": points}
+            if raw.get("type") == "raw":
+                if points is None or points < 0:
+                    partial = True
+                    warnings.append("production points were malformed")
+            elif points is not None and points >= 0 and needs is not None:
                 inputs = []
                 valid = True
                 for ingredient, quantity in needs.items():
@@ -501,7 +507,7 @@ class GameConfigurationService:
         data, read, provenance = await self._read(CONFIG, "get_company_overview", correlation_id)
         items = as_mapping(data.get("items"))
         item = as_mapping(items.get(code)) if items else None
-        if item is None:
+        if item is None or item.get("type") == "raw":
             return None, read
         points = finite_number(item.get("productionPoints"))
         needs = as_mapping(item.get("productionNeeds"))
@@ -521,3 +527,11 @@ class GameConfigurationService:
             observed_at=read.observed_at,
             source_procedure=CONFIG,
         ), read
+
+
+def is_raw_material(payload: object, code: str) -> bool:
+    """Recognize a raw item from official configuration, without inferring a recipe."""
+    data = as_mapping(payload)
+    items = as_mapping(data.get("items")) if data is not None else None
+    item = as_mapping(items.get(code)) if items is not None else None
+    return item is not None and item.get("type") == "raw"

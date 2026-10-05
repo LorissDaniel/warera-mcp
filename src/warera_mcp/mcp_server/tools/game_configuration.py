@@ -95,7 +95,8 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_item_details",
         description=(
-            "Get official configuration and a validated production recipe for one item code. "
+            "Get official configuration, production points per unit (including raw materials) "
+            "and a validated production recipe for one item code. "
             "Configuration items can differ from market-eligible items; this does not "
             "guarantee market availability."
         ),

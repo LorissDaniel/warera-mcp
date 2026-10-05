@@ -153,9 +153,11 @@ formula. `get_item_catalog` returns a separate built-in list of item codes; conf
 items and the live market price list can differ from that list. Player skill summaries
 are included only when the public profile supplies them.
 
-Company overviews fetch recipes from game configuration when available. Python integrations
-can supply a recipe catalog through `ServiceRuntime` to override that lookup; the standard
-CLI uses no local recipe overrides. Contract fixtures are used only by tests and are not
+Company overviews fetch recipes from game configuration when available. Raw materials expose
+production points per unit through `get_item_details`, have no ingredient recipe, and do not trigger
+missing-recipe warnings. Manufactured products still require validated recipe inputs.
+Python integrations can supply a recipe catalog through `ServiceRuntime` to override that lookup;
+the standard CLI uses no local recipe overrides. Contract fixtures are used only by tests and are not
 production defaults.
 
 ## Development

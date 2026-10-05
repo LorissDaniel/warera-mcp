@@ -47,3 +47,49 @@ async def test_official_snapshot_drives_skill_item_upgrade_and_schedule_projecti
     for headers in stub.headers_for("gameConfig.getGameConfig"):
         assert "api-key" not in headers
         assert "authorization" not in headers
+
+
+async def test_all_official_raw_materials_expose_points_without_recipes(
+    services: Services, stub: UpstreamStub
+) -> None:
+    document = json.loads((FIXTURE_ROOT / "game_configuration.json").read_text())
+    config = document["entries"][0]["data"]
+    stub.route("gameConfig.getGameConfig", config)
+    raw_items = {code: item for code, item in config["items"].items() if item["type"] == "raw"}
+    assert {"fish", "livestock", "iron"} <= raw_items.keys()
+    for code, raw in raw_items.items():
+        result = await services.game_configuration.get_item(code)
+        assert result.item["production"] == {
+            "production_points_per_unit": raw["productionPoints"]
+        }
+        assert result.partial is False
+        assert result.warnings == []
+        recipe, _ = await services.game_configuration.get_recipe(code)
+        assert recipe is None
+
+
+@pytest.mark.parametrize("points", [None, True, -1, "40"])
+async def test_malformed_raw_points_are_not_reported_as_recipe_problems(
+    services: Services, stub: UpstreamStub, points: object
+) -> None:
+    stub.route("gameConfig.getGameConfig", {
+        "items": {"fish": {"type": "raw", "productionPoints": points}}
+    })
+    result = await services.game_configuration.get_item("fish")
+    assert "production" not in result.item
+    assert result.partial is True
+    assert result.warnings == ["production points were malformed"]
+
+
+async def test_product_missing_inputs_retains_points_but_has_no_validated_recipe(
+    services: Services, stub: UpstreamStub
+) -> None:
+    stub.route("gameConfig.getGameConfig", {
+        "items": {"steel": {"type": "product", "productionPoints": 10}}
+    })
+    result = await services.game_configuration.get_item("steel")
+    assert result.item["production"] == {"production_points_per_unit": 10}
+    assert result.partial is True
+    assert result.warnings == ["production recipe was incomplete or malformed"]
+    recipe, _ = await services.game_configuration.get_recipe("steel")
+    assert recipe is None

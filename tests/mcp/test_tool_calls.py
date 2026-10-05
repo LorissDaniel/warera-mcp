@@ -715,6 +715,31 @@ def test_company_overview_enriches_with_anonymous_official_recipe(
     assert "authorization" not in headers
 
 
+def test_raw_company_and_item_do_not_report_missing_recipes(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    stub.route("company.getById", {"_id": "co-1", "itemCode": "fish"})
+    stub.route("company.getProductionBonus", {"total": 0})
+    stub.route("gameConfig.getGameConfig", {
+        "items": {"fish": {"type": "raw", "productionPoints": 40}}
+    })
+
+    async def scenario(session: Any) -> None:
+        overview = await session.call_tool("get_company_overview", {"company_id": "co-1"})
+        assert overview.isError is False
+        assert "recipe" not in overview.structuredContent
+        assert overview.structuredContent["partial"] is False
+        assert overview.structuredContent["warnings"] == []
+        item = await session.call_tool("get_item_details", {"item_code": "fish"})
+        assert item.isError is False
+        assert item.structuredContent["item"]["production"] == {
+            "production_points_per_unit": 40
+        }
+        assert item.structuredContent["partial"] is False
+
+    run_mcp(settings, stub, scenario)
+
+
 def test_every_v1_tool_accepts_optional_request_credentials(
     settings: Settings, stub: UpstreamStub
 ) -> None:

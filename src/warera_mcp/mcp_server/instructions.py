@@ -28,8 +28,9 @@ How to use it:
   stock or production capacity. Compare visible order depth consistently across
   output items when the market results provide it. If a company result lacks a
   validated recipe or marks it partial, call `get_item_details` for that
-  company's output item before estimating input costs. If item details still
-  has no validated recipe, report the recipe as unavailable from the snapshot;
+  company's output item before estimating input costs. If item details identifies
+  a raw material, use its production points without an ingredient recipe. If a
+  manufactured product still has no validated recipe, report it as unavailable from the snapshot;
   do not infer ingredients. Use market books for the output and each verified
   recipe input when comparing prices.
 - When an item name is uncertain or natural-language rather than a WarEra code,
@@ -47,6 +48,10 @@ How to use it:
   These reads are anonymous and cached briefly; use live tools for current player,
   market, world, company and battle state. Keep configuration facts separate from
   calculations, state assumptions and missing inputs, and do not infer unlisted formulas.
+  For production points per unit, call `get_item_details` for each item, including
+  raw materials, before asking the user to transcribe values from the game.
+  Raw materials have production points but no ingredient recipe; absence of a
+  recipe for a configured raw material is expected, not missing data.
   Use a player's skill summary when returned by `get_player` to compare current skills
   with configured progression; do not infer private currency or ranks when absent.
   The local verified item catalog and official configuration items can differ from
