@@ -33,6 +33,16 @@ How to use it:
   manufactured product still has no validated recipe, report it as unavailable from the snapshot;
   do not infer ingredients. Use market books for the output and each verified
   recipe input when comparing prices.
+- For global price comparisons involving two or more materials, call
+  `get_market_prices` ONCE with item_codes containing all needed codes. Omit
+  item_codes for the full price catalog. Do not call get_market_price once per
+  material and do not fetch quotes already present in that same snapshot again.
+  get_market_price is for a single item. Omit limit to keep all requested prices;
+  a supplied limit applies after filtering. Missing quotes are unknown, never
+  zero; inspect missing_item_codes, partial and truncated before calculations.
+  Global quoted prices do not describe executable bids/asks or quantities.
+  When those are required, use search_market for each relevant item; the global
+  price catalog does not contain order-book data.
 - When an item name is uncertain or natural-language rather than a WarEra code,
   call `get_item_catalog` first. It exposes the complete locally verified canonical
   item-code catalog without a network request; match the user's language to one of

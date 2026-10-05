@@ -94,6 +94,7 @@ class MarketService:
         self,
         *,
         limit: int | None,
+        item_codes: list[str] | None = None,
         credentials: PlayerRequestContext | None = None,
         correlation_id: str | None = None,
     ) -> MarketPricesResult:
@@ -101,8 +102,19 @@ class MarketService:
             credentials=credentials, correlation_id=correlation_id
         )
         prices = normalize_prices(read.data)
-        ordered = dict(sorted(prices.items(), key=lambda entry: (-entry[1], entry[0])))
+        requested = list(dict.fromkeys(item_codes)) if item_codes is not None else None
+        missing = [code for code in requested if code not in prices] if requested else []
+        selected = (
+            {code: prices[code] for code in requested if code in prices} if requested else prices
+        )
+        ordered = dict(sorted(selected.items(), key=lambda entry: (-entry[1], entry[0])))
         warnings: list[str] = []
+        if missing:
+            warnings.append(
+                "some requested items have no valid quote in the snapshot; "
+                "see missing_item_codes; do not assume zero prices"
+            )
+        truncated = limit is not None and len(ordered) > limit
         if limit is not None and len(ordered) > limit:
             warnings.append(f"price catalog truncated to {limit} items")
             ordered = dict(list(ordered.items())[:limit])
@@ -111,6 +123,10 @@ class MarketService:
             observed_at=read.observed_at,
             warnings=warnings,
             prices=ordered,
+            requested_item_codes=requested,
+            missing_item_codes=missing,
+            truncated=truncated,
+            partial=bool(missing) or truncated,
             freshness_seconds=round(freshness, 1),
         )
 

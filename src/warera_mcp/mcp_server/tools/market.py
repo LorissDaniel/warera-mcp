@@ -27,14 +27,17 @@ GET_ITEM_CATALOG_DESCRIPTION = (
 )
 
 GET_MARKET_PRICES_DESCRIPTION = (
-    "Get the complete current catalog of global quoted prices for all known items, sorted by "
-    "price. By default no items are omitted; an explicit limit is optional. This is not an "
-    "order book, production-profit calculation, or market average."
+    "Get global quoted prices for multiple materials in ONE call. Prefer this tool whenever "
+    "two or more item prices are needed; pass item_codes for a subset, or omit it for the "
+    "complete catalog. Prices share one snapshot and are sorted by descending price. "
+    "Missing quotes and optional limit truncation are explicit. This is not an order book "
+    "or executable buy/sell price; use search_market for bids, asks and quantities."
 )
 
 GET_MARKET_PRICE_DESCRIPTION = (
-    "Get the latest global quoted price for one item. This is a single price snapshot for one "
-    "item, not an order book or a market average."
+    "Get the global quoted price for exactly one item. When multiple materials are needed, "
+    "use get_market_prices with item_codes in ONE call rather than calling this tool per item. "
+    "This is not an order book or an executable buy/sell price."
 )
 
 SEARCH_MARKET_DESCRIPTION = (
@@ -115,13 +118,22 @@ def register(mcp: FastMCP) -> None:
     async def get_market_prices(
         ctx: ToolContext,
         player_context: PlayerContextInput,
+        item_codes: Annotated[
+            list[ItemCode] | None,
+            Field(
+                default=None,
+                min_length=1,
+                max_length=64,
+                description="Item codes to return together; omit for all quoted items.",
+            ),
+        ] = None,
         limit: Annotated[
             int | None,
             Field(
                 default=None,
                 ge=1,
                 le=5000,
-                description="Optional maximum item prices; omit to return the complete catalog.",
+                description="Optional maximum rows after filtering; omit for all requested prices.",
             ),
         ] = None,
     ) -> CallToolResult:
@@ -129,6 +141,7 @@ def register(mcp: FastMCP) -> None:
         credentials = player_context_credentials(player_context)
         result = await runtime.services.market.get_market_prices(
             limit=limit,
+            item_codes=item_codes,
             credentials=credentials,
             correlation_id=call_id(ctx),
         )
@@ -136,6 +149,10 @@ def register(mcp: FastMCP) -> None:
         if result.prices:
             top = next(iter(result.prices.items()))
             summary += f"; highest quoted price: {top[0]}={top[1]}"
+        if result.missing_item_codes:
+            summary += f"; {len(result.missing_item_codes)} requested quotes unavailable"
+        if result.truncated:
+            summary += "; truncated by limit"
         return success_result(
             result,
             summary=summary,

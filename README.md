@@ -5,8 +5,8 @@
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 
 A small, **read-only** [MCP](https://modelcontextprotocol.io) server that lets an AI assistant
-look things up in the browser game **WarEra** — players, companies, countries, markets, battles, military units,
-events and articles — and answer questions about them in plain language.
+look things up in the browser game **WarEra** — players, companies, countries, markets,
+battles, military units, events and articles — and answer questions about them in plain language.
 
 > ### ⚠️ Unofficial project
 > This is an **unofficial, community-made** project. It is **not affiliated with, endorsed by,
@@ -14,13 +14,14 @@ events and articles — and answer questions about them in plain language.
 > related names belong to their respective owners.
 >
 > It is a personal open-source hobby project, built in my free time **with the help of AI**.
-> It relies on WarEra's public web API, which is **undocumented and may change or break at any time**.
-> Use it at your own risk and please be considerate with the game's servers.
+> It uses WarEra's web API and its [official documentation](https://api2.warera.io/docs/).
+> API behavior and response shapes can change; documented requests are checked against live
+> responses where possible. Please be considerate with the game's servers.
 
 ## What is this?
 
 MCP (Model Context Protocol) is a standard way to plug tools into AI assistants such as Claude
-Desktop. This server gives an assistant a handful of **purpose-built, game-aware tools** instead of
+Desktop. This server gives an assistant **purpose-built, game-aware tools** instead of
 raw web requests, so you can simply ask:
 
 - *"What does player Kiro own, and what are their production bonuses?"*
@@ -31,7 +32,49 @@ raw web requests, so you can simply ask:
 - *"Elencami gli articoli in italiano."*
 - *"Riassumi le ultime novità di WarEra tramite gli articoli."*
 
-The server fetches the data, tidies it up, and hands the assistant a compact, size-limited answer. Tools accept optional request-scoped WarEra credentials (`api_key` or `jwt`) in `player_context`; the project never provides a default or global WarEra credential.
+The server fetches data and returns structured facts with stable identifiers, observation times
+and explicit gaps. The assistant can combine those facts for analysis, calculations and simulations.
+Selected tools accept optional request-scoped WarEra credentials (`api_key` or `jwt`) in
+`player_context`; the project never provides a default or global WarEra credential.
+
+## Quick start
+
+You need Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone https://github.com/LorissDaniel/warera-mcp.git
+cd warera-mcp
+uv sync --locked
+uv run warera-mcp            # serves over stdio
+```
+
+**Use it from an MCP client** (for example Claude Desktop) by adding it to the client's config:
+
+```json
+{
+  "mcpServers": {
+    "warera": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/warera-mcp", "run", "warera-mcp"]
+    }
+  }
+}
+```
+
+**Run it as a small web service** instead:
+
+```bash
+uv run warera-mcp --transport streamable-http --port 8000   # MCP endpoint: http://127.0.0.1:8000/mcp
+```
+
+This command binds to loopback by default. For remote use, configure client authentication,
+trusted hosts and HTTPS through your deployment or reverse proxy. The server warns about
+missing authentication/trusted hosts when configured to bind outside loopback; it cannot
+detect every externally reachable proxy configuration. See [.env.example](.env.example) for
+the environment variable names. MCP client bearer tokens are separate from WarEra credentials.
+
+If a desktop client cannot find `uv`, use its absolute executable path in `command`.
+After updates, restart or reconnect the MCP server so the client refreshes its tool schemas.
 
 ## Tools
 
@@ -55,7 +98,7 @@ Every tool is marked read-only. There is deliberately **no** generic "call any e
 its ranked company locations excluding deposit bonuses. It exposes bonus components and
 taxes as fractions, plus region/country names when available. API key or JWT is required;
 API key is always selected when both are supplied. The ranking covers the recommendations
-returned by the game (currently five), not every world region. `offset` and `limit` page
+returned by the game (five in the verified responses), not every world region. `offset` and `limit` page
 that returned list; deposit bonuses are never subtracted using an inferred formula.
 
 `get_player_resources(user_id=..., item_codes=["iron", "steel", "fish"])` reads available
@@ -76,13 +119,30 @@ Credentials are requested only after a tool reports missing authentication. Auth
 is selected independently for each endpoint; there is no automatic retry with a JWT after
 an API key is rejected. The project never loads credentials from another project's `.env`.
 
+### Multiple material prices
+
+For price comparisons, use one call such as
+`get_market_prices(item_codes=["iron", "steel", "fish"])` instead of one
+`get_market_price` call per material. Omit `item_codes` to retain the complete
+catalog behavior. Lists accept 1–64 codes; duplicates are removed. Filtering is
+local over one shared, cached `itemTrading.getPrices` snapshot; it does not issue
+one upstream request per material. Prices remain sorted by descending value.
+
+Omit `limit` to return every selected quote. If supplied, it applies after
+filtering and sets `truncated=true` when prices are omitted. Missing/unquoted
+codes are reported in `missing_item_codes`, while available prices are retained;
+`partial=true` indicates missing quotes or truncation. Missing prices must not be
+used as zero in calculations. These are global quoted prices; for visible
+bids, asks and quantities, use `search_market` for each relevant material. Visible
+orders are snapshots and do not guarantee execution or sufficient liquidity.
+
 ### Public player facts
 
 `get_player(user_id=...)` returns the public profile's MU id, military rank,
 active flag, creation date, numerical leveling/statistics and reported activity
 timestamps, alongside skills and rankings. `fields` can select `profile`,
 `location`, `level`, `skills_summary`, `rankings_summary`, `activity` and
-`statistics`; omitted fields selects all groups. The profile's `military_unit_id`
+`statistics`; omitting `fields` selects all groups. The profile's `military_unit_id`
 links directly to the MU tools without a membership search.
 
 `skills` and `rankings` remain compact numerical maps, compatible with older
@@ -117,17 +177,21 @@ must not be inferred from a single page.
 owner, location, member/role counts, level, monthly damage, mercenary reputation,
 active upgrade levels, manager/commander ids (up to 20 per role), last-announcement
 time and the six reported ranking snapshots. `roles_truncated` flags capped role
-lists; use the paginated roster with `include_non_members=true` for full coverage. Missing values
-remain unknown. Names are untrusted player content. Wealth is a ranking value,
-not a verified inventory balance. Full member lists, avatar URLs and per-user investment maps are excluded from the
-dossier; roster and investment tools expose the analytical data in bounded pages.
+lists; use the paginated roster with `include_non_members=true` for full coverage of
+the identities returned by the API. Missing values remain unknown. Names are untrusted
+player content. Wealth is a ranking value, not a verified inventory balance. Full member
+lists, avatar URLs and per-user investment maps are excluded from the dossier; roster
+and investment tools expose the analytical data in bounded pages.
 
 `get_military_unit_members(military_unit_id=..., offset=0, limit=10)` pages the
 public member roster with owner, manager and commander flags. Missing role data
 remains unknown. Set `include_non_members=true` to include owner, managers and
 commanders outside the roster. `is_member` distinguishes membership from a
 management role, and `total_count` covers the selected set of identities.
-Use `get_player(user_id=...)` for individual profiles.
+Role flags reflect the API's `roles.managers` and `roles.commanders` lists. A listed
+responsible user may belong to another MU, and a role reference may not match what
+the game UI currently displays; the server does not independently verify effective
+permissions. Use `get_player(user_id=...)` for individual profiles.
 
 `get_military_unit_investments(military_unit_id=..., offset=0, limit=10)` pages
 `investedMoneyByUsers`, including former members when reported. Amounts are
@@ -135,6 +199,7 @@ reported monetary investments, not treasury or upgrade resource balances. A
 missing map returns `available=false` with unknown amounts/count; an explicitly
 empty map returns `available=true` and zero entries. Pagination does not infer
 investment history or fetch transaction records.
+
 `get_military_unit_upgrades` reads headquarters and dormitories separately,
 including disabled/pending status, investments and activation timestamps when
 available. A failed upgrade read preserves the other result with `partial=true`.
@@ -187,46 +252,14 @@ is deliberately excluded because it can count a view; summaries use the paginate
 Both exposed queries were checked anonymously against the
 [official API documentation](https://api2.warera.io/docs/).
 
-## Quick start
-
-You need Python 3.11+ and [uv](https://docs.astral.sh/uv/).
-
-```bash
-git clone <this-repository-url> warera-mcp
-cd warera-mcp
-uv sync
-uv run warera-mcp            # serves over stdio
-```
-
-**Use it from an MCP client** (for example Claude Desktop) by adding it to the client's config:
-
-```json
-{
-  "mcpServers": {
-    "warera": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/warera-mcp", "run", "warera-mcp"]
-    }
-  }
-}
-```
-
-**Run it as a small web service** instead:
-
-```bash
-uv run warera-mcp --transport streamable-http --port 8000   # MCP endpoint: http://127.0.0.1:8000/mcp
-```
-
-If you expose it beyond your own machine, turn on client authentication and set trusted hosts
-(see `.env.example`). The server prints a warning when it is reachable without them.
-
 ## How it works (the short version)
 
-- **Read-only by design.** It can only *read* a short, reviewed list of public WarEra queries.
-  Nothing in it can change anything in the game.
-- **Meaningful tools, not raw data.** Each tool answers a cohesive question ("who owns what?") by
-  combining a few upstream calls. For questions that span domains, the assistant can combine
-  several tools using stable IDs or item codes and retain each result's snapshot time.
+- **Read-only by design.** The client calls only explicitly reviewed read operations.
+  Most are public; selected reads require request-scoped authentication. State-changing
+  operations and the potentially view-counting full article endpoint are excluded.
+- **Structured, linkable facts.** Tools project upstream data into documented fields;
+  some combine related reads. The assistant chooses further tools using stable IDs or
+  item codes and retains snapshot times, units and coverage limits.
 - **Bounded.** Results, number of upstream calls, response size and time per request are all capped,
   so one question can't run away.
 - **Stateless and lightweight.** No database and no accounts. Only a small in-memory cache of
@@ -242,7 +275,9 @@ If you expose it beyond your own machine, turn on client authentication and set 
 - If supplied, `player_context` carries the caller's own request-scoped `api_key` or `jwt`.
 - The project has no default or global WarEra credential.
 - Submitted credentials are not logged, cached or persisted by the server, but they are sent in the MCP tool request and may be visible in the LLM/client conversation history.
-- Nothing you ask is stored.
+- The server has no persistent conversation store. Public responses can be held in its
+  in-memory TTL cache, and operational logs record sanitized request metadata. The MCP
+  client, hosting platform and reverse proxy have their own storage/logging policies.
 - Found a security problem? Please report it privately (for example via your hosting platform's
   security-advisory feature) rather than opening a public issue.
 
@@ -278,32 +313,6 @@ Python integrations can supply a recipe catalog through `ServiceRuntime` to over
 the standard CLI uses no local recipe overrides. Contract fixtures are used only by tests and are not
 production defaults.
 
-## Development
-
-```bash
-uv sync
-uv run pytest          # tests run offline against a stubbed API
-uv run ruff check .    # lint
-uv run mypy            # strict type checking
-```
-
-The test suite never calls the real game API unless you opt in with `WARERA_MCP_LIVE_TESTS=1`.
-
-## Contributing
-
-Issues and pull requests are welcome. Please keep changes small and focused, add or update tests,
-and make sure `ruff`, `mypy` and `pytest` pass. The one hard rule: **this project stays read-only** —
-changes that add anything able to modify game state will not be accepted.
-
-## Acknowledgements
-
-Built with the help of AI tooling, by a player, for players. Thanks to the WarEra community for
-sharing what they've learned about the game.
-
-## License
-
-Released under the [MIT License](LICENSE). Provided "as is", without warranty of any kind.
-
 ## API batching
 
 Concurrent upstream reads with identical authentication headers are collected for
@@ -338,3 +347,29 @@ logical reads, while `warera_http_requests_total` counts actual HTTP attempts;
 `warera_batches_total` and `warera_batch_size` describe multi-query batches.
 Batching reduces HTTP overhead; WarEra may still count each procedure toward its
 API quota.
+
+## Development
+
+```bash
+uv sync --locked
+uv run pytest          # tests run offline against a stubbed API
+uv run ruff check .    # lint
+uv run mypy            # strict type checking
+```
+
+The test suite never calls the real game API unless you opt in with `WARERA_MCP_LIVE_TESTS=1`.
+
+## Contributing
+
+Issues and pull requests are welcome. Please keep changes small and focused, add or update tests,
+and make sure `ruff`, `mypy` and `pytest` pass. The one hard rule: **this project stays read-only** —
+changes that add anything able to modify game state will not be accepted.
+
+## Acknowledgements
+
+Built with the help of AI tooling, by a player, for players. Thanks to the WarEra community for
+sharing what they've learned about the game.
+
+## License
+
+Released under the [MIT License](LICENSE). Provided "as is", without warranty of any kind.

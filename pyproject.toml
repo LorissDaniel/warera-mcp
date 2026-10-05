@@ -30,7 +30,9 @@ dependencies = [
 warera-mcp = "warera_mcp.__main__:main"
 
 [project.urls]
-Documentation = "https://github.com/example/warera-mcp#readme"
+Documentation = "https://github.com/LorissDaniel/warera-mcp#readme"
+Repository = "https://github.com/LorissDaniel/warera-mcp"
+Issues = "https://github.com/LorissDaniel/warera-mcp/issues"
 
 [project.optional-dependencies]
 otel = [

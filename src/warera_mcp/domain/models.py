@@ -410,6 +410,10 @@ class MarketPricesResult(ToolResult):
     """Output of ``get_market_prices``."""
 
     prices: dict[str, float] = Field(default_factory=dict)
+    requested_item_codes: list[str] | None = None
+    missing_item_codes: list[str] = Field(default_factory=list)
+    truncated: bool = False
+    partial: bool = False
     source: Literal["global_prices"] = "global_prices"
     freshness_seconds: float | None = None
 
