@@ -2,7 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
-![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)
+![Release: v1.0.0](https://img.shields.io/badge/release-v1.0.0-blue.svg)
+![Status: beta](https://img.shields.io/badge/status-beta-orange.svg)
 
 A **read-only** [MCP](https://modelcontextprotocol.io) server that lets an AI assistant
 look things up in the browser game **WarEra** — players, companies, countries, markets,

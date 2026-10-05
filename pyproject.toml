@@ -1,6 +1,6 @@
 [project]
 name = "warera-mcp"
-version = "0.1.0"
+version = "1.0.0"
 description = "Standalone, semantic, strictly read-only MCP server for WarEra game data."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,7 +8,7 @@ license = { text = "MIT" }
 authors = [{ name = "WarEra MCP contributors" }]
 keywords = ["mcp", "warera", "model-context-protocol", "read-only"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
