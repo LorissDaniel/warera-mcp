@@ -1,8 +1,9 @@
 """Rendering canonical tool results into MCP ``CallToolResult`` objects.
 
-Every tool returns a compact structured object plus a short human-readable
-summary. A hard output-byte budget is enforced here so a projection can never
-become an unbounded payload, independent of the per-tool row caps.
+Every tool returns a compact structured object, a short human-readable summary,
+and a JSON text copy of the same object for clients that only consume content.
+The projection's byte budget applies before it is copied into text; the copy is
+therefore bounded too, independently of the per-tool row caps.
 """
 
 from __future__ import annotations
@@ -42,7 +43,13 @@ def success_result(
     structured = model.to_structured()
     enforce_output_budget(structured, operation=operation, max_bytes=max_bytes)
     return CallToolResult(
-        content=[TextContent(type="text", text=truncate_summary(summary, limit=summary_limit))],
+        content=[
+            TextContent(type="text", text=truncate_summary(summary, limit=summary_limit)),
+            TextContent(
+                type="text",
+                text=json.dumps(structured, separators=(",", ":"), ensure_ascii=False),
+            ),
+        ],
         structuredContent=structured,
         isError=False,
     )

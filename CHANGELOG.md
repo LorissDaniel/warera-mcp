@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Expose concrete construction units and the verified company-cost formula,
+  including the sixth-company case, and instruct clients to ask for an in-game
+  username when personalized lookups require one.
+- Include the complete projected facts as JSON text alongside `structuredContent` in
+  successful tool results, so clients that consume only `content` receive values,
+  recipes, warnings and pagination rather than just a summary heading.
+
 ## 1.0.0 — 2026-10-05
 
 First public release, shared with the WarEra community. Project status: beta.

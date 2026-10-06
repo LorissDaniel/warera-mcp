@@ -224,15 +224,25 @@ class GameConfigurationService:
                 if number is None:
                     malformed += 1
                     continue
-                records.append(
-                    {
-                        "id": rule.record_id,
-                        "label": rule.label,
-                        "value": number,
-                        "unit": rule.unit,
-                        "upstream_field": rule.upstream_path,
-                    }
-                )
+                record: dict[str, Any] = {
+                    "id": rule.record_id,
+                    "label": rule.label,
+                    "value": number,
+                    "unit": rule.unit,
+                    "upstream_field": rule.upstream_path,
+                }
+                if rule.record_id == "companies.construction_cost_increment":
+                    # Verified against the official /companies UI on 2026-10-06:
+                    # getCompaniesCount (not getActiveCompaniesCount) + 1.
+                    record.update(
+                        cost_item_code="concrete",
+                        formula="concrete_cost = value * (owned_company_count + 1)",
+                        owned_company_count_offset=1,
+                        company_count_scope="all_owned_companies",
+                        formula_source_url="https://app.warera.io/companies",
+                        formula_verified_at="2026-10-06",
+                    )
+                records.append(record)
             for table_topic, table_path, record_prefix, key_column, value_column in TABLE_RULES:
                 if table_topic != topic:
                     continue

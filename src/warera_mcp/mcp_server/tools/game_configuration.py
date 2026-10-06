@@ -34,7 +34,9 @@ def register(mcp: FastMCP) -> None:
         name="get_game_rules",
         description=(
             "Get bounded official configuration facts for one supported game topic, including "
-            "item and skill discovery. Results are timestamped snapshots; this does not provide "
+            "item and skill discovery. The companies topic includes the concrete construction "
+            "cost formula; an explicit company number needs no username. "
+            "Results are timestamped snapshots; this does not provide "
             "every game mechanic."
         ),
         annotations=READ_ONLY_ANNOTATIONS,

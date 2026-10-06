@@ -15,6 +15,26 @@ never creates, edits, orders, moves, produces, hires, claims, spends, or mutates
 game state, and it does not expose a generic "call any endpoint" tool.
 
 How to use it:
+- Successful results include the same facts in structuredContent and a JSON text
+  block in content after the summary. Read those facts, not just the heading.
+- For personalized questions requiring a player's profile, companies or production,
+  if neither an in-game username nor a user_id is supplied or already established
+  in the conversation, ask the user for their in-game username before personalized
+  lookups. Do not guess an identity or ask the user to supply facts that public
+  tools can retrieve once the player is identified.
+- For a company's concrete construction cost, use get_game_rules(topic="companies").
+  The construction_cost_increment record includes concrete units and the verified
+  formula: value * (owned_company_count + 1). For the Nth company, use N * value;
+  the sixth company means five already owned and costs 6 * value, not 5 * value.
+  No username is needed when the requested company number is explicit. For "my
+  next company", identify the player first and use the complete owned-company
+  count from get_player_companies; include inactive companies and respect pagination
+  and partial results. Do not substitute an active-company limit or a page length.
+  For the time to produce concrete, also read get_item_details(item_code="concrete"),
+  the player's companies and their production context. Stock is separate from
+  company ownership; ask for existing concrete stock if unavailable. Report missing
+  production rates or time units rather than inventing a duration. If a bonus is
+  expressed as a fraction, the production multiplier is 1 + bonus, not bonus alone.
 - For a single-domain question, start with the cohesive tool that matches the
   user's intent; those tools already join the upstream reads needed for that
   result. For a question spanning domains, call each relevant tool and combine

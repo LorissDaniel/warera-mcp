@@ -73,6 +73,22 @@ def test_tool_descriptions_are_concise_and_explain_scope(
         assert "not a" in lowered or "not " in lowered or "does not" in lowered, tool.name
 
 
+def test_instructions_cover_missing_player_identity_and_sixth_company_cost(
+    settings: Settings, stub: UpstreamStub
+) -> None:
+    from warera_mcp.mcp_server.instructions import SERVER_INSTRUCTIONS
+
+    assert "ask the user for their in-game username before personalized" in SERVER_INSTRUCTIONS
+    assert "supplied or already established" in SERVER_INSTRUCTIONS
+    assert "No username is needed when the requested company number is explicit" in (
+        SERVER_INSTRUCTIONS
+    )
+    assert "sixth company means five already owned and costs 6 * value" in SERVER_INSTRUCTIONS
+    assert "count from get_player_companies" in SERVER_INSTRUCTIONS
+    tools = {tool.name: tool for tool in list_tools(settings, stub)}
+    assert "concrete construction cost formula" in tools["get_game_rules"].description
+
+
 def test_tool_names_are_verb_noun_and_unique(settings: Settings, stub: UpstreamStub) -> None:
     names = [tool.name for tool in list_tools(settings, stub)]
     assert len(names) == len(set(names))

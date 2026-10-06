@@ -35,6 +35,16 @@ raw web requests, so you can simply ask:
 
 The server fetches data and returns structured facts with stable identifiers, observation times
 and explicit gaps. The assistant can combine those facts for analysis, calculations and simulations.
+Successful tools return these facts in both `structuredContent` and a JSON text block in
+`content`, after a short summary, so clients that consume only text receive the same data.
+The output-byte limit applies to the projected facts before this compatibility copy is added.
+For company construction, `get_game_rules(topic="companies")` includes the concrete
+cost formula: configured increment × (owned companies + 1). With the current increment
+of 50, the sixth company costs 300 concrete. This formula was verified against the
+[official companies page](https://app.warera.io/companies) on 2026-10-06; the increment
+comes from the fetched configuration. An explicit company number needs no player lookup.
+For personalized questions such as production time for "my next company", the server
+instructs the assistant to ask for the in-game username when no player identity is known.
 Selected tools accept optional request-scoped WarEra credentials (`api_key` or `jwt`) in
 `player_context`; the project never provides a default or global WarEra credential.
 

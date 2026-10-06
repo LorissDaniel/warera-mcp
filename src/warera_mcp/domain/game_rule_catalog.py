@@ -72,6 +72,7 @@ RULES: tuple[RuleSpec, ...] = (
         "company.constructionCostIncreasePerCompany",
         "Construction cost increase per company",
         "number",
+        "concrete_units",
     ),
     RuleSpec(
         "companies.deposit_resource_bonus",
