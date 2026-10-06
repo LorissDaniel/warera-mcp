@@ -1,0 +1,12 @@
+# Allowlist: no local credentials, virtualenvs, tests or Git metadata in the build.
+**
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+!deploy/
+!deploy/entrypoint.sh
+**/__pycache__/
+**/*.pyc

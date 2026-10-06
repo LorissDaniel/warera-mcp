@@ -1,0 +1,12 @@
+# Upload only the files required to build the public server.
+**
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+!deploy/
+!deploy/entrypoint.sh
+**/__pycache__/
+**/*.pyc
