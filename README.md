@@ -48,6 +48,43 @@ instructs the assistant to ask for the in-game username when no player identity 
 Selected tools accept optional request-scoped WarEra credentials (`api_key` or `jwt`) in
 `player_context`; the project never provides a default or global WarEra credential.
 
+## Connect to the hosted MCP
+
+Use this HTTPS MCP endpoint in Claude or ChatGPT:
+
+```text
+https://warera-mcp-agkzl5m3va-ew.a.run.app/mcp
+```
+
+Remote connections use Streamable HTTP and require no account or token.
+
+### Claude
+
+1. Open **Customize → Connectors → + Add → Add custom connector**.
+2. Enter **WarEra** as the name and the HTTPS endpoint above as the server URL.
+3. Continue to the authentication settings and choose **No sign in**.
+   Leave OAuth settings and request headers empty.
+4. Click **Add**, then enable WarEra from **+ → Connectors** in a conversation.
+5. Try: *"Using WarEra, what is the current market price of iron?"*
+
+The hosted endpoint requires no MCP client token. WarEra player API keys and
+JWTs are separate, optional credentials for selected tools; public tools need none.
+For Team or Enterprise, an organization owner or authorized administrator must
+add the connector before members can enable it.
+See [Claude's remote connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+
+### ChatGPT
+
+1. Use ChatGPT on the web. If required, enable **Developer mode** under
+   **Settings → Security and login**. Workspace permissions may restrict access.
+2. Open **Plugins**, select **+ → Create custom MCP server**, and enter **WarEra**
+   with the HTTPS `/mcp` URL above.
+3. Select **No authentication**. Leave OAuth client ID and secret empty.
+4. Review the connection warning, create the plugin, and install it.
+5. Enable WarEra in a conversation and ask a game-data question.
+
+See [OpenAI's custom MCP setup guide](https://developers.openai.com/api/docs/guides/custom-mcp-server).
+
 ## Quick start
 
 You need Python 3.11+ and [uv](https://docs.astral.sh/uv/).
@@ -86,44 +123,6 @@ the environment variable names. MCP client bearer tokens are separate from WarEr
 
 If a desktop client cannot find `uv`, use its absolute executable path in `command`.
 After updates, restart or reconnect the MCP server so the client refreshes its tool schemas.
-
-## Connect to the hosted MCP
-
-Use this HTTPS MCP endpoint in Claude or ChatGPT:
-
-```text
-https://warera-mcp-agkzl5m3va-ew.a.run.app/mcp
-```
-
-Remote connections use Streamable HTTP and require no account or token.
-
-### Claude
-
-1. Open **Customize → Connectors → + Add → Add custom connector**.
-2. Enter **WarEra** as the name and the HTTPS endpoint above as the server URL.
-3. Continue to the authentication settings and choose **No sign in**.
-   Leave OAuth settings and request headers empty.
-4. Click **Add**, then enable WarEra from **+ → Connectors** in a conversation.
-5. Try: *"Using WarEra, what is the current market price of iron?"*
-
-The hosted endpoint requires no MCP client token. WarEra player API keys and
-JWTs are separate, optional credentials for selected tools; public tools need none.
-For Team or Enterprise, an organization owner or authorized administrator must
-add the connector before members can enable it.
-See [Claude's remote connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
-
-### ChatGPT
-
-1. Use ChatGPT on the web. If required, enable **Developer mode** under
-   **Settings → Security and login**. Workspace permissions may restrict access.
-2. Open **Plugins**, select **+ → Create custom MCP server**, and enter **WarEra**
-   with the HTTPS `/mcp` URL above.
-3. Select **No authentication**. Leave OAuth client ID and secret empty.
-4. Review the connection warning, create the plugin, and install it.
-5. Enable WarEra in a conversation and ask a game-data question.
-
-See [OpenAI's custom MCP setup guide](https://developers.openai.com/api/docs/guides/custom-mcp-server).
-
 
 ## Tools
 

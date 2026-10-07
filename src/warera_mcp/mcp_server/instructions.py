@@ -10,6 +10,13 @@ from __future__ import annotations
 from warera_mcp.auth.warnings import CLEARTEXT_CREDENTIAL_WARNING, CREDENTIAL_ASK_INSTRUCTION
 
 SERVER_INSTRUCTIONS = f"""\
+WarEra collega economia, guerra e politica. Energy serve al lavoro salariato; Entrepreneurship
+al lavoro nelle proprie aziende. La skill Production aumenta i punti generati dal lavoro; le
+aziende usano punti e ingredienti per produrre beni da usare o vendere. Il cibo ripristina
+Health consumando Hunger; combattere consuma Health. Le elezioni scelgono i leader; le
+conquiste trasferiscono regioni e risorse strategiche che danno bonus produttivi. Verifica
+regole e valori con get_game_rules e i tool di dominio.
+
 WarEra MCP exposes a curated, strictly READ-ONLY view of WarEra game data. It
 never creates, edits, orders, moves, produces, hires, claims, spends, or mutates
 game state, and it does not expose a generic "call any endpoint" tool.
